@@ -22,36 +22,13 @@ torch.backends.cudnn.benchmark = True
 
 def get_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-c",
-        "--config",
-        metavar="base_config.yaml",
-        help="paths to base config",
-        required=True,
-    )
-    parser.add_argument(
-        "--train", action="store_true", default=False, help="specify to train model"
-    )
-    parser.add_argument(
-        "--test",
-        action="store_true",
-        default=False,
-        help="specify to test model"
-        "By default run.py trains a model based on config file",
-    )
-    parser.add_argument(
-        "--ckpt_path", type=str, default=None, help="Checkpoint path for the save model"
-    )
+    parser.add_argument("--config", metavar="base_config.yaml", help="paths to base config", required=True,)
+    parser.add_argument("--train", action="store_true", default=False, help="specify to train model")
+    parser.add_argument("--test", action="store_true", default=False, help="specify to test model. By default run.py trains a model based on config file")
+    parser.add_argument("--ckpt_path", type=str, default=None, help="Checkpoint path for the save model")
     parser.add_argument("--random_seed", type=int, default=23, help="Random seed")
-    parser.add_argument(
-        "--train_pct", type=float, default=1.0, help="Percent of training data"
-    )
-    parser.add_argument(
-        "--splits",
-        type=int,
-        default=1,
-        help="Train on n number of splits used for training. Defaults to 1",
-    )
+    parser.add_argument("--train_pct", type=float, default=1.0, help="Percent of training data")
+    parser.add_argument("--splits", type=int, default=1, help="Train on n number of splits used for training. Defaults to 1")
     parser = Trainer.add_argparse_args(parser)
 
     return parser
@@ -60,10 +37,10 @@ def get_parser():
 def main(cfg, args):
 
     # get datamodule
-    dm = gloria.builder.build_data_module(cfg)
+    datamodule = gloria.builder.build_data_module(cfg)
 
     # define lightning module
-    model = gloria.builder.build_lightning_model(cfg, dm)
+    model = gloria.builder.build_lightning_model(cfg, datamodule)
 
     # callbacks
     callbacks = [LearningRateMonitor(logging_interval="step")]
@@ -97,18 +74,18 @@ def main(cfg, args):
 
     # learning rate finder
     if trainer_args.auto_lr_find is not False:
-        lr_finder = trainer.tuner.lr_find(model, datamodule=dm)
+        lr_finder = trainer.tuner.lr_find(model, datamodule=datamodule)
         new_lr = lr_finder.suggestion()
         model.lr = new_lr
         print("=" * 80 + f"\nLearning rate updated to {new_lr}\n" + "=" * 80)
 
     if args.train:
-        trainer.fit(model, dm)
+        trainer.fit(model, datamodule)
     if args.test:
         ckpt_path = (
             checkpoint_callback.best_model_path if args.train else cfg.model.checkpoint
         )
-        trainer.test(model=model, datamodule=dm)
+        trainer.test(model=model, datamodule=datamodule)
 
     # save top weights paths to yaml
     if "checkpoint_callback" in cfg.lightning:

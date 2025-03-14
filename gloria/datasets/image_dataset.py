@@ -8,7 +8,7 @@ import pandas as pd
 from PIL import Image
 from torch.utils.data import Dataset
 from albumentations import ShiftScaleRotate, Normalize, Resize, Compose
-from albumentations.pytorch import ToTensor
+from albumentations.pytorch import ToTensorV2
 from gloria.constants import *
 
 
@@ -284,7 +284,7 @@ class PneumothoraxImageDataset(ImageBaseDataset):
             [
                 Resize(self.cfg.data.image.imsize, self.cfg.data.image.imsize),
                 Normalize(mean=mean, std=std, p=1),
-                ToTensor(),
+                ToTensorV2(),
             ]
         )
 

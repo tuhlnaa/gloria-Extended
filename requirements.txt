@@ -1,3 +1,17 @@
+--find-links https://download.pytorch.org/whl/cu121
+torch==2.3.0
+torchvision==0.18.0
+torchaudio==2.3.0
+
+nltk>=3.9.1
+transformers>=4.49.0
+lightning>=2.4.0
+albumentations>=2.0.5
+segmentation-models-pytorch>=0.4.0
+
+pandas>=2.2.3
+
+
 absl-py==0.11.0
 aiohttp==3.7.3
 albumentations==0.5.2
