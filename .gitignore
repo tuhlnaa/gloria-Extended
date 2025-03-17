@@ -6,6 +6,7 @@ input/*
 weights/*
 .neptune/*
 download/*
+pretrained/*
 
 test_*.py
 test_*.txt

@@ -89,6 +89,16 @@ def load_gloria(
     ckpt_dict = fixed_ckpt_dict
 
     gloria_model = builder.build_gloria_model(cfg).to(device)
+    # Remove the problematic key
+    if "text_encoder.model.embeddings.position_ids" in ckpt_dict:
+        del ckpt_dict["text_encoder.model.embeddings.position_ids"]
+    # if "text_encoder.model.embeddings.position_ids" in ckpt_dict:
+    #     pos_ids = ckpt_dict["text_encoder.model.embeddings.position_ids"]
+    #     print(f"Type: {type(pos_ids)}")
+    #     print(f"Shape: {pos_ids.shape}")
+    #     print(f"Data type: {pos_ids.dtype}")
+    #     print(f"First few values: {pos_ids[:5, :5] if len(pos_ids.shape) > 1 else pos_ids[:5]}")
+    #     print(pos_ids)
     gloria_model.load_state_dict(ckpt_dict)
 
     return gloria_model
