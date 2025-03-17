@@ -25,7 +25,8 @@ class SegmentationModel(LightningModule):
 
         if self.cfg.model.vision.model_name in gloria.available_models():
             self.model = gloria.load_img_segmentation_model(
-                self.cfg.model.vision.model_name
+                self.cfg.model.vision.model_name,
+                device=self.cfg.device
             )
         else:
             self.model = smp.Unet("resnet50", encoder_weights=None, activation=None)

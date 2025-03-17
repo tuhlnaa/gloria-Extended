@@ -24,7 +24,7 @@ cls_prompts = gloria.generate_chexpert_class_prompts()
 
 # process input images and class prompts 
 processed_txt = gloria_model.process_class_prompts(cls_prompts, device)
-processed_imgs = gloria_model.process_img(full_paths, device)
+processed_imgs = gloria_model.process_images(full_paths, device)
 
 # zero-shot classification on 1000 images
 similarities = gloria.zero_shot_classification(
@@ -44,4 +44,16 @@ C:/Users/<user>/.cache/huggingface/hub/models--emilyalsentzer--Bio_ClinicalBERT/
 C:/Users/<user>/.cache/huggingface/hub/models--emilyalsentzer--Bio_ClinicalBERT/snapshots/d5892b39a4adaed74b92212a44081509db72f87b/vocab.txt
 C:/Users/<user>/.cache/huggingface/hub/models--emilyalsentzer--Bio_ClinicalBERT/snapshots/d5892b39a4adaed74b92212a44081509db72f87b/config.json
 
+
+   Atelectasis  Cardiomegaly  Consolidation     Edema  Pleural Effusion
+0    -0.511970     -0.762625       1.031379  0.944730         -1.259174
+1    -2.216534     -1.691719      -1.606168 -0.573690         -1.500512
+2     0.456774     -0.266830       1.334458 -0.093671          0.856507
+3     1.064348     -0.514511      -0.386101 -1.837835          0.570704
+4     0.225337      0.549659      -0.291379  0.158554         -0.651506
+5     0.582589      0.542763       0.277927  0.888471          0.409863
+6    -1.276765     -0.718759      -0.522587  0.117429         -0.611307
+7     1.142969     -0.069415      -0.950891 -1.060934          0.488634
+8     0.181445      0.830991      -0.554048 -0.361641         -0.260467
+9     0.351803      2.100447       1.667400  1.818593          1.957265
 """

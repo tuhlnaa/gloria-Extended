@@ -26,6 +26,7 @@ class ClassificationModel(LightningModule):
                 self.cfg.model.vision.model_name,
                 num_cls=self.cfg.model.vision.num_targets,
                 freeze_encoder=self.cfg.model.vision.freeze_cnn,
+                device=self.cfg.device
             )
         else:
             self.model = builder.build_img_model(cfg)

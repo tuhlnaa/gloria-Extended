@@ -37,7 +37,7 @@ model:
     vision:
         model_name: 'resnet_50'
         freeze_cnn: false
-        pretrained: true
+        pretrained: "DEFAULT"
     text:  
         bert_type: "emilyalsentzer/Bio_ClinicalBERT"
         last_n_layers: 4

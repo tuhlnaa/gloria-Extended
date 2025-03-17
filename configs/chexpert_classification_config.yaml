@@ -1,5 +1,6 @@
 experiment_name: 'chexpert_classifier'
 phase: 'classification'
+device: "cuda:1"
 
 lightning:
     trainer:
@@ -30,7 +31,7 @@ model:
     vision:
         model_name: 'gloria_resnet50'
         freeze_cnn: true
-        pretrained: false
+        pretrained: "DEFAULT"
         num_targets: 5
 
 data: 

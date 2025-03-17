@@ -38,6 +38,8 @@ class ImageEncoder(nn.Module):
     def forward(self, x, get_local=False):
         # --> fixed-size input: batch x 3 x 299 x 299
         if "resnet" or "resnext" in self.cfg.model.vision.model_name:
+            # for i in range(x.size()[0]//20):  # 🛠️
+            #     global_ft, local_ft = self.resnet_forward(x, extract_features=True)
             global_ft, local_ft = self.resnet_forward(x, extract_features=True)
         elif "densenet" in self.cfg.model.vision.model_name:
             global_ft, local_ft = self.dense_forward(x, extract_features=True)
@@ -58,7 +60,8 @@ class ImageEncoder(nn.Module):
 
         # --> fixed-size input: batch x 3 x 299 x 299
         x = nn.Upsample(size=(299, 299), mode="bilinear", align_corners=True)(x)
-
+        x= x[:10,]    # 🛠️
+        #print(x.shape)  # [1000, 3, 299, 299]
         x = self.model.conv1(x)  # (batch_size, 64, 150, 150)
         x = self.model.bn1(x)
         x = self.model.relu(x)

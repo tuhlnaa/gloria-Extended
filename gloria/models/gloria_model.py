@@ -1,3 +1,4 @@
+from typing import Dict
 import torch
 import torch.nn as nn
 import cv2
@@ -237,80 +238,105 @@ class GLoRIA(nn.Module):
             "cap_lens": cap_lens,
         }
 
-    def process_class_prompts(self, class_prompts, device):
 
-        cls_2_processed_txt = {}
-        for k, v in class_prompts.items():
-            cls_2_processed_txt[k] = self.process_text(v, device)
-
-        return cls_2_processed_txt
-
-    def process_img(self, paths, device):
-
-        transform = builder.build_transformation(self.cfg, split="test")
-
-        if type(paths) == str:
-            paths = [paths]
-
-        all_imgs = []
-        for p in paths:
-
-            x = cv2.imread(str(p), 0)
-
-            # tranform images
-            x = self._resize_img(x, self.cfg.data.image.imsize)
-            img = Image.fromarray(x).convert("RGB")
-            img = transform(img)
-            all_imgs.append(torch.tensor(img))
-
-        all_imgs = torch.stack(all_imgs).to(device)
-
-        return all_imgs
-
-    def _resize_img(self, img, scale):
+    def process_class_prompts(self, class_prompts: Dict[str, str], device: torch.device) -> Dict[str, Dict]:
         """
+        Process class prompt texts into model-ready format.
+        
         Args:
-            img - image as numpy array (cv2)
-            scale - desired output image-size as scale x scale
-        Return:
-            image resized to scale x scale with shortest dimension 0-padded
+            class_prompts: Dictionary mapping class names to prompt texts
+            device: Device to place tensors on
+            
+        Returns:
+            Dictionary mapping class names to processed tensors
         """
-        size = img.shape
-        max_dim = max(size)
-        max_ind = size.index(max_dim)
+        return {
+            class_name: self.process_text(prompt_text, device)
+            for class_name, prompt_text in class_prompts.items()
+        }
+    
+    
+    def process_images(self, paths, device):
+        """
+        Process images for model input.
+        
+        Args:
+            paths: String path to single image or list of image paths
+            device: PyTorch device to load tensors to
+            
+        Returns:
+            torch.Tensor: Batch of processed images on specified device
+        """
+        transform = builder.build_transformation(self.cfg, split="test")
+        
+        # Ensure paths is a list
+        if isinstance(paths, str):
+            paths = [paths]
+        
+        # Process each image
+        processed_images = []
+        for path in paths:
+            # Read grayscale image
+            img = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
+            
+            # Resize and transform image
+            img = self._resize_image(img, self.cfg.data.image.imsize)
+            img_rgb = Image.fromarray(img).convert("RGB")
+            img_tensor = transform(img_rgb)
+            processed_images.append(img_tensor)
+        
+        # Stack and move batch to device
+        batch = torch.stack(processed_images).to(device)
+        
+        return batch
 
-        # Resizing
-        if max_ind == 0:
-            # image is heigher
-            wpercent = scale / float(size[0])
-            hsize = int((float(size[1]) * float(wpercent)))
-            desireable_size = (scale, hsize)
+
+    def _resize_image(self, img, target_size):
+        """
+        Resize image to target size while maintaining aspect ratio and padding if necessary.
+        
+        Args:
+            img: Image as numpy array (grayscale)
+            target_size: Desired output image size (square)
+            
+        Returns:
+            numpy.ndarray: Resized and padded image of size target_size x target_size
+        """
+        height, width = img.shape
+        
+        # Determine which dimension to scale based on aspect ratio
+        if height > width:
+            # Image is taller than wide
+            scale_factor = target_size / height
+            new_height = target_size
+            new_width = int(width * scale_factor)
         else:
-            # image is wider
-            hpercent = scale / float(size[1])
-            wsize = int((float(size[0]) * float(hpercent)))
-            desireable_size = (wsize, scale)
+            # Image is wider than tall or square
+            scale_factor = target_size / width
+            new_width = target_size
+            new_height = int(height * scale_factor)
+        
+        # Resize image
         resized_img = cv2.resize(
-            img, desireable_size[::-1], interpolation=cv2.INTER_AREA
-        )  # this flips the desireable_size vector
-
-        # Padding
-        if max_ind == 0:
-            # height fixed at scale, pad the width
-            pad_size = scale - resized_img.shape[1]
-            left = int(np.floor(pad_size / 2))
-            right = int(np.ceil(pad_size / 2))
-            top = int(0)
-            bottom = int(0)
-        else:
-            # width fixed at scale, pad the height
-            pad_size = scale - resized_img.shape[0]
-            top = int(np.floor(pad_size / 2))
-            bottom = int(np.ceil(pad_size / 2))
-            left = int(0)
-            right = int(0)
-        resized_img = np.pad(
-            resized_img, [(top, bottom), (left, right)], "constant", constant_values=0
+            img, (new_width, new_height), interpolation=cv2.INTER_AREA
         )
-
-        return resized_img
+        
+        # Calculate padding
+        pad_height = target_size - new_height
+        pad_width = target_size - new_width
+        
+        # Distribute padding evenly on both sides
+        top = pad_height // 2
+        bottom = pad_height - top
+        left = pad_width // 2
+        right = pad_width - left
+        
+        # Apply padding
+        padded_img = np.pad(
+            resized_img, 
+            [(top, bottom), (left, right)], 
+            mode="constant", 
+            constant_values=0
+        )
+        
+        return padded_img
