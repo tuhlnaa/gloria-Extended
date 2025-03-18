@@ -1,3 +1,4 @@
+from itertools import product
 import os
 import torch
 import numpy as np
@@ -10,7 +11,7 @@ from . import builder
 from . import utils
 from . import constants
 from .models.vision_model import PretrainedImageClassifier
-from typing import Union, List
+from typing import Dict, Union, List
 
 
 np.random.seed(6)
@@ -285,32 +286,39 @@ def zero_shot_classification(gloria_model, imgs, cls_txt_mapping):
     return class_similarities
 
 
-def generate_chexpert_class_prompts(n: int = 5):
-    """Generate text prompts for each CheXpert classification task
-
-    Parameters
-    ----------
-    n:  int
-        number of prompts per class
-
-    Returns
-    -------
-    class prompts : dict
-        dictionary of class to prompts
+def generate_chexpert_class_prompts(num_prompts: int = 5) -> Dict[str, List[str]]:
+    """Generate text prompts for each CheXpert classification task.
+    
+    This function creates combinations of severity, subtype, and location phrases
+    for each CheXpert class, then randomly samples a specified number of prompts.
+    
+    Args:
+        num_prompts: Number of prompts to generate per class.
+        
+    Returns:
+        Dictionary mapping each class to a list of text prompts.
     """
+    np.random.seed(6)
+    random.seed(6)
 
-    prompts = {}
-    for k, v in constants.CHEXPERT_CLASS_PROMPTS.items():
-        cls_prompts = []
-        keys = list(v.keys())
+    class_prompts = {}
+    
+    for class_name, attribute_dict in constants.CHEXPERT_CLASS_PROMPTS.items():
+        # Extract attributes for the current class
+        severities = attribute_dict.get("severity")
+        subtypes = attribute_dict.get("subtype")
+        locations = attribute_dict.get("location")
+        
+        # Generate all possible combinations of severity, subtype, and location
+        all_prompts = []
+        for severity, subtype, location in product(severities, subtypes, locations):
+            # Skip empty prompts and clean up extra spaces
+            combined = f"{severity} {subtype} {location}"#.strip()
+            if combined != "  ":  # Avoid empty strings
+                all_prompts.append(combined)
 
-        # severity
-        for k0 in v[keys[0]]:
-            # subtype
-            for k1 in v[keys[1]]:
-                # location
-                for k2 in v[keys[2]]:
-                    cls_prompts.append(f"{k0} {k1} {k2}")
-
-        prompts[k] = random.sample(cls_prompts, n)
-    return prompts
+        # Sample prompts, handling case where fewer prompts exist than requested
+        sample_size = min(num_prompts, len(all_prompts))
+        class_prompts[class_name] = random.sample(all_prompts, sample_size)
+    
+    return class_prompts

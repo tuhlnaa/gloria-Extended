@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List, Union
 import torch
 import torch.nn as nn
 import cv2
@@ -15,25 +15,27 @@ from nltk.tokenize import RegexpTokenizer
 
 
 class GLoRIA(nn.Module):
-    def __init__(self, cfg):
+    def __init__(self, config):
         super(GLoRIA, self).__init__()
 
-        self.cfg = cfg
-        self.text_encoder = builder.build_text_model(cfg)
-        self.img_encoder = builder.build_img_model(cfg)
+        self.config = config
+        self.text_encoder = builder.build_text_model(config)
+        self.img_encoder = builder.build_img_model(config)
 
         self.local_loss = loss.gloria_loss.local_loss
         self.global_loss = loss.gloria_loss.global_loss
-        self.local_loss_weight = self.cfg.model.gloria.local_loss_weight
-        self.global_loss_weight = self.cfg.model.gloria.global_loss_weight
+        self.local_loss_weight = self.config.model.gloria.local_loss_weight
+        self.global_loss_weight = self.config.model.gloria.global_loss_weight
 
-        self.temp1 = self.cfg.model.gloria.temp1
-        self.temp2 = self.cfg.model.gloria.temp2
-        self.temp3 = self.cfg.model.gloria.temp3
-        self.batch_size = self.cfg.train.batch_size
+        self.temp1 = self.config.model.gloria.temp1
+        self.temp2 = self.config.model.gloria.temp2
+        self.temp3 = self.config.model.gloria.temp3
+        self.batch_size = self.config.train.batch_size
 
-        self.tokenizer = AutoTokenizer.from_pretrained(self.cfg.model.text.bert_type)
+        self.tokenizer = AutoTokenizer.from_pretrained(self.config.model.text.bert_type)
         self.ixtoword = {v: k for k, v in self.tokenizer.get_vocab().items()}
+        self.word_tokenizer = RegexpTokenizer(r"\w+")
+
 
     def text_encoder_forward(self, caption_ids, attention_mask, token_type_ids):
         text_emb_l, text_emb_g, sents = self.text_encoder(
@@ -41,13 +43,15 @@ class GLoRIA(nn.Module):
         )
         return text_emb_l, text_emb_g, sents
 
+
     def image_encoder_forward(self, imgs):
+        # Forward pass through the encoder.
         img_feat_g, img_emb_l = self.img_encoder(imgs, get_local=True)
-        img_emb_g, img_emb_l = self.img_encoder.generate_embeddings(
-            img_feat_g, img_emb_l
-        )
+        # Generate embeddings from extracted features.
+        img_emb_g, img_emb_l = self.img_encoder.generate_embeddings(img_feat_g, img_emb_l)
 
         return img_emb_l, img_emb_g
+
 
     def _calc_local_loss(self, img_emb_l, text_emb_l, sents):
 
@@ -64,9 +68,11 @@ class GLoRIA(nn.Module):
         )
         return l_loss0, l_loss1, attn_maps
 
+
     def _calc_global_loss(self, img_emb_g, text_emb_g):
         g_loss0, g_loss1 = self.global_loss(img_emb_g, text_emb_g, temp3=self.temp3)
         return g_loss0, g_loss1
+
 
     def calc_loss(self, img_emb_l, img_emb_g, text_emb_l, text_emb_g, sents):
 
@@ -82,6 +88,7 @@ class GLoRIA(nn.Module):
 
         return loss, attn_maps
 
+
     def forward(self, x):
 
         # img encoder branch
@@ -94,12 +101,14 @@ class GLoRIA(nn.Module):
 
         return img_emb_l, img_emb_g, text_emb_l, text_emb_g, sents
 
+
     def get_global_similarities(self, img_emb_g, text_emb_g):
         img_emb_g = img_emb_g.detach().cpu().numpy()
         text_emb_g = text_emb_g.detach().cpu().numpy()
         global_similarities = metrics.pairwise.cosine_similarity(img_emb_g, text_emb_g)
         global_similarities = torch.Tensor(global_similarities)
         return global_similarities
+
 
     def get_local_similarities(self, img_emb_l, text_emb_l, cap_lens):
 
@@ -139,85 +148,75 @@ class GLoRIA(nn.Module):
 
         return local_similarities
 
+
     def get_attn_maps(self, img_emb_l, text_emb_l, sents):
         _, _, attn_maps = self._calc_local_loss(img_emb_l, text_emb_l, sents)
         return attn_maps
+
 
     def plot_attn_maps(self, attn_maps, imgs, sents, epoch_idx=0, batch_idx=0):
 
         img_set, _ = utils.build_attention_images(
             imgs,
             attn_maps,
-            max_word_num=self.cfg.data.text.word_num,
-            nvis=self.cfg.train.nvis,
-            rand_vis=self.cfg.train.rand_vis,
+            max_word_num=self.config.data.text.word_num,
+            nvis=self.config.train.nvis,
+            rand_vis=self.config.train.rand_vis,
             sentences=sents,
         )
 
         if img_set is not None:
             im = Image.fromarray(img_set)
             fullpath = (
-                f"{self.cfg.output_dir}/"
+                f"{self.config.output_dir}/"
                 f"attention_maps_epoch{epoch_idx}_"
                 f"{batch_idx}.png"
             )
             im.save(fullpath)
 
-    def process_text(self, text, device):
 
-        if type(text) == str:
+    def process_text(self, text: Union[str, List[str]], device: torch.device) -> Dict[str, torch.Tensor]:
+        """
+        Process text input into tensors for model consumption.
+        
+        Args:
+            text: Either a single text string or a list of text strings
+            device: The device to place tensors on
+            
+        Returns:
+            Dictionary containing processed text tensors
+        """
+        # Convert single string to list for consistent processing
+        if isinstance(text, str):
             text = [text]
-
+            
         processed_text_tensors = []
+        
         for t in text:
-            # use space instead of newline
-            t = t.replace("\n", " ")
-
-            # split sentences
-            splitter = re.compile("[0-9]+\.")
-            captions = splitter.split(t)
-            captions = [point.split(".") for point in captions]
-            captions = [sent for point in captions for sent in point]
-
-            all_sents = []
-
-            for t in captions:
-                t = t.replace("\ufffd\ufffd", " ")
-                tokenizer = RegexpTokenizer(r"\w+")
-                tokens = tokenizer.tokenize(t.lower())
-
-                if len(tokens) <= 1:
-                    continue
-
-                included_tokens = []
-                for t in tokens:
-                    t = t.encode("ascii", "ignore").decode("ascii")
-                    if len(t) > 0:
-                        included_tokens.append(t)
-                all_sents.append(" ".join(included_tokens))
-
-            t = " ".join(all_sents)
-
+            # Clean and tokenize text
+            cleaned_text = self._clean_and_tokenize_text(t)
+            
+            # Tokenize with model tokenizer
             text_tensors = self.tokenizer(
-                t,
+                cleaned_text,
                 return_tensors="pt",
                 truncation=True,
                 padding="max_length",
-                max_length=self.cfg.data.text.word_num,
+                max_length=self.config.data.text.word_num,
             )
+            
+            # Add word representations
             text_tensors["sent"] = [
-                self.ixtoword[ix] for ix in text_tensors["input_ids"][0].tolist()
+                self.ixtoword[idx] for idx in text_tensors["input_ids"][0].tolist()
             ]
             processed_text_tensors.append(text_tensors)
 
+        # Combine tensors from all texts
         caption_ids = torch.stack([x["input_ids"] for x in processed_text_tensors])
-        attention_mask = torch.stack(
-            [x["attention_mask"] for x in processed_text_tensors]
-        )
-        token_type_ids = torch.stack(
-            [x["token_type_ids"] for x in processed_text_tensors]
-        )
+        attention_mask = torch.stack([x["attention_mask"] for x in processed_text_tensors])
+        token_type_ids = torch.stack([x["token_type_ids"] for x in processed_text_tensors])
 
+        # Handle dimensions based on batch size
         if len(text) == 1:
             caption_ids = caption_ids.squeeze(0).to(device)
             attention_mask = attention_mask.squeeze(0).to(device)
@@ -227,9 +226,8 @@ class GLoRIA(nn.Module):
             attention_mask = attention_mask.squeeze().to(device)
             token_type_ids = token_type_ids.squeeze().to(device)
 
-        cap_lens = []
-        for txt in text:
-            cap_lens.append(len([w for w in txt if not w.startswith("[")]))
+        # Calculate caption lengths
+        cap_lens = [len([w for w in txt if not w.startswith("[")]) for txt in text]
 
         return {
             "caption_ids": caption_ids,
@@ -237,6 +235,51 @@ class GLoRIA(nn.Module):
             "token_type_ids": token_type_ids,
             "cap_lens": cap_lens,
         }
+    
+    
+    def _clean_and_tokenize_text(self, text: str) -> str:
+        """
+        Clean and tokenize a single text string.
+        
+        Args:
+            text: Text string to clean
+            
+        Returns:
+            Cleaned and tokenized text
+        """
+        # Replace newlines with spaces
+        text = text.replace("\n", " ")
+
+        # Split text into sentences
+        splitter = re.compile(r"[0-9]+\.")
+        captions = splitter.split(text)
+        captions = [point.split(".") for point in captions]
+        captions = [sent for point in captions for sent in point]
+
+        cleaned_sentences = []
+
+        for sentence in captions:
+            # Remove unicode replacement characters
+            sentence = sentence.replace("\ufffd\ufffd", " ")
+            
+            # Tokenize sentence
+            tokens = self.word_tokenizer.tokenize(sentence.lower())
+
+            # Skip very short sentences
+            if len(tokens) <= 1:
+                continue
+
+            # Filter non-ASCII characters
+            filtered_tokens = []
+            for token in tokens:
+                ascii_token = token.encode("ascii", "ignore").decode("ascii")
+                if ascii_token:
+                    filtered_tokens.append(ascii_token)
+                    
+            if filtered_tokens:
+                cleaned_sentences.append(" ".join(filtered_tokens))
+
+        return " ".join(cleaned_sentences)
 
 
     def process_class_prompts(self, class_prompts: Dict[str, str], device: torch.device) -> Dict[str, Dict]:
@@ -267,7 +310,7 @@ class GLoRIA(nn.Module):
         Returns:
             torch.Tensor: Batch of processed images on specified device
         """
-        transform = builder.build_transformation(self.cfg, split="test")
+        transform = builder.build_transformation(self.config, split="test")
         
         # Ensure paths is a list
         if isinstance(paths, str):
@@ -280,7 +323,7 @@ class GLoRIA(nn.Module):
             img = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
             
             # Resize and transform image
-            img = self._resize_image(img, self.cfg.data.image.imsize)
+            img = self._resize_image(img, self.config.data.image.imsize)
             img_rgb = Image.fromarray(img).convert("RGB")
             img_tensor = transform(img_rgb)
             processed_images.append(img_tensor)
