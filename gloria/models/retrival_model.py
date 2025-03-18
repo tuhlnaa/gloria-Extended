@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from .. import utils
-from ..loss.gloria_loss import attention_fn, cosine_similarity
+from ..loss.gloria_loss import compute_attention
 from sklearn import metrics
 
 
@@ -144,7 +144,7 @@ class Retriver:
             word = words_emb[i, :, 1 : words_num + 1].unsqueeze(0).contiguous()
             context = img_features
 
-            weiContext, _ = attention_fn(word, context, temp1)
+            weiContext, _ = compute_attention(word, context, temp1)
 
             word = word.transpose(1, 2).contiguous()
             weiContext = weiContext.transpose(1, 2).contiguous()
@@ -152,7 +152,7 @@ class Retriver:
             word = word.squeeze()
             weiContext = weiContext.squeeze()
 
-            row_sim = cosine_similarity(word, weiContext)
+            row_sim = cosine_similarity(word, weiContext).squeeze()
 
             row_sim.mul_(temp2).exp_()
             if agg == "sum":

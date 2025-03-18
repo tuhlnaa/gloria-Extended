@@ -20,10 +20,10 @@ gloria_model = gloria.load_gloria(device=device)
 #    'Cardiomegaly': ['cardiomegaly unchanged', 'cardiac silhouette enlarged' ...] 
 # ...
 # } 
-cls_prompts = gloria.generate_chexpert_class_prompts()
+class_prompts = gloria.generate_chexpert_class_prompts()
 
 # process input images and class prompts 
-processed_txt = gloria_model.process_class_prompts(cls_prompts, device)
+processed_txt = gloria_model.process_class_prompts(class_prompts, device)
 processed_imgs = gloria_model.process_images(full_paths, device)
 
 # zero-shot classification on 1000 images
@@ -56,4 +56,17 @@ C:/Users/<user>/.cache/huggingface/hub/models--emilyalsentzer--Bio_ClinicalBERT/
 7     1.142969     -0.069415      -0.950891 -1.060934          0.488634
 8     0.181445      0.830991      -0.554048 -0.361641         -0.260467
 9     0.351803      2.100447       1.667400  1.818593          1.957265
+
+
+   Atelectasis  Cardiomegaly  Consolidation     Edema  Pleural Effusion
+0    -0.511969     -0.762624       1.031377  0.944727         -1.718593
+1    -2.216533     -1.691717      -1.606169 -0.573689         -1.144250
+2     0.456773     -0.266828       1.334460 -0.093671          1.363296
+3     1.064348     -0.514508      -0.386101 -1.837836         -0.031464
+4     0.225338      0.549663      -0.291379  0.158553         -0.009847
+5     0.582590      0.542765       0.277929  0.888471          0.523101
+6    -1.276765     -0.718758      -0.522587  0.117429          0.070017
+7     1.142971     -0.069413      -0.950893 -1.060933         -0.155062
+8     0.181447      0.830992      -0.554046 -0.361640         -0.666549
+9     0.351805      2.100448       1.667398  1.818594          1.769349
 """

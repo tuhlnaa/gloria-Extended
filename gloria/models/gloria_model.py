@@ -1,10 +1,11 @@
-from typing import Dict, List, Union
+from typing import Dict, List, Tuple, Union
 import torch
 import torch.nn as nn
 import cv2
 import re
 import numpy as np
 from sklearn import metrics
+import torch.nn.functional as F
 
 from PIL import Image
 from .. import builder
@@ -37,7 +38,20 @@ class GLoRIA(nn.Module):
         self.word_tokenizer = RegexpTokenizer(r"\w+")
 
 
+    def forward(self, x):
+        # img encoder branch
+        img_emb_local, img_emb_g = self.image_encoder_forward(x["imgs"])
+
+        # text encorder branch
+        text_emb_local, text_emb_g, sents = self.text_encoder_forward(
+            x["caption_ids"], x["attention_mask"], x["token_type_ids"]
+        )
+
+        return img_emb_local, img_emb_g, text_emb_local, text_emb_g, sents
+    
+
     def text_encoder_forward(self, caption_ids, attention_mask, token_type_ids):
+        # Forward pass through the BERT encoder
         text_emb_l, text_emb_g, sents = self.text_encoder(
             caption_ids, attention_mask, token_type_ids
         )
@@ -46,11 +60,11 @@ class GLoRIA(nn.Module):
 
     def image_encoder_forward(self, imgs):
         # Forward pass through the encoder.
-        img_feat_g, img_emb_l = self.img_encoder(imgs, get_local=True)
+        img_feat_g, img_emb_local = self.img_encoder(imgs, get_local=True)
         # Generate embeddings from extracted features.
-        img_emb_g, img_emb_l = self.img_encoder.generate_embeddings(img_feat_g, img_emb_l)
+        img_emb_g, img_emb_local = self.img_encoder.generate_embeddings(img_feat_g, img_emb_local)
 
-        return img_emb_l, img_emb_g
+        return img_emb_local, img_emb_g
 
 
     def _calc_local_loss(self, img_emb_l, text_emb_l, sents):
@@ -89,63 +103,94 @@ class GLoRIA(nn.Module):
         return loss, attn_maps
 
 
-    def forward(self, x):
-
-        # img encoder branch
-        img_emb_l, img_emb_g = self.image_encoder_forward(x["imgs"])
-
-        # text encorder branch
-        text_emb_l, text_emb_g, sents = self.text_encoder_forward(
-            x["caption_ids"], x["attention_mask"], x["token_type_ids"]
-        )
-
-        return img_emb_l, img_emb_g, text_emb_l, text_emb_g, sents
-
-
-    def get_global_similarities(self, img_emb_g, text_emb_g):
-        img_emb_g = img_emb_g.detach().cpu().numpy()
-        text_emb_g = text_emb_g.detach().cpu().numpy()
-        global_similarities = metrics.pairwise.cosine_similarity(img_emb_g, text_emb_g)
-        global_similarities = torch.Tensor(global_similarities)
-        return global_similarities
-
-
-    def get_local_similarities(self, img_emb_l, text_emb_l, cap_lens):
-
-        batch_size = img_emb_l.shape[0]
+    @staticmethod
+    def compute_global_similarities(img_emb_global: torch.Tensor, text_emb_global: torch.Tensor) -> torch.Tensor:
+        """
+        Compute global similarities between image and text embeddings.
+        
+        Args:
+            img_emb_global: Global image embeddings
+            text_emb_global: Global text embeddings
+            
+        Returns:
+            Tensor of cosine similarities
+        """
+        # Convert to numpy for sklearn's cosine similarity calculation
+        img_emb_np = img_emb_global.detach().cpu().numpy()
+        text_emb_np = text_emb_global.detach().cpu().numpy()
+        
+        # Compute pairwise cosine similarities
+        similarities = metrics.pairwise.cosine_similarity(img_emb_np, text_emb_np)
+        
+        return torch.tensor(similarities)
+    
+    
+    @staticmethod
+    def compute_local_similarities(
+            img_emb_local: torch.Tensor, 
+            text_emb_local: torch.Tensor, 
+            caption_lengths: torch.Tensor,
+            attention_scale: float = 4.0,
+            similarity_scale: float = 5.0
+        ) -> torch.Tensor:
+        """
+        Compute local similarities between image and text embeddings.
+        
+        Args:
+            img_emb_local: Local image embeddings
+            text_emb_local: Local text embeddings
+            caption_lengths: Length of each caption
+            attention_scale: Scaling factor for attention computation
+            similarity_scale: Scaling factor for similarity computation
+            
+        Returns:
+            Tensor of local similarities
+        """
+        batch_size = img_emb_local.shape[0]
         similarities = []
+        
+        for i, words_num in enumerate(caption_lengths):
+            # Extract word features for this caption, excluding special tokens
+            # Shape: [1, embed_dim, caption_length], e.g. [1, 768, 32]
+            word_features = text_emb_local[i, :, 1:words_num+1].unsqueeze(0)
 
-        for i in range(len(text_emb_l)):
-            words_num = cap_lens[i]
-            word = (
-                text_emb_l[i, :, 1 : words_num + 1].unsqueeze(0).contiguous()
-            )  # [1, 768, 25]
+            # Repeat word features for each image in batch
+            # Shape: [batch_size, embed_dim, caption_length], e.g. [?, 768, 32]
+            word_features = word_features.repeat(batch_size, 1, 1)
 
-            word = word.repeat(batch_size, 1, 1)  # [48, 768, 25]
-            context = img_emb_l  # [48, 768, 19, 19]
+            # Use image embeddings as context
+            # Shape: [batch_size, embed_dim, height, width], e.g. [?, 768, 19, 19]
+            context = img_emb_local
 
-            weiContext, attn = loss.gloria_loss.attention_fn(
-                word, context, 4.0
-            )  # [48, 768, 25], [48, 25, 19, 19]
+            # Compute attention-weighted context
+            weighted_context, _ = loss.gloria_loss.compute_attention(word_features, context, attention_scale)
 
-            word = word.transpose(1, 2).contiguous()  # [48, 25, 768]
-            weiContext = weiContext.transpose(1, 2).contiguous()  # [48, 25, 768]
+            # Transpose to align dimensions for similarity computation
+            # Shape: [batch_size, caption_length, embed_dim], e.g. [?, 32, 768]
+            word_features = word_features.transpose(1, 2)
+            weighted_context = weighted_context.transpose(1, 2)
 
-            word = word.view(batch_size * words_num, -1)  # [1200, 768]
-            weiContext = weiContext.view(batch_size * words_num, -1)  # [1200, 768]
-            #
-            row_sim = loss.gloria_loss.cosine_similarity(word, weiContext)
-            row_sim = row_sim.view(batch_size, words_num)  # [48, 25]
+            # Reshape for efficient computation
+            # Shape: [batch_size * caption_length, embed_dim], e.g. [?, 768]
+            word_features_flat = word_features.reshape(batch_size * words_num, -1)
+            weighted_context_flat = weighted_context.reshape(batch_size * words_num, -1)
+            
+            # Compute cosine similarity
+            # Shape: [batch_size, 32]
+            row_sim = F.cosine_similarity(word_features_flat, weighted_context_flat).squeeze()
+            row_sim = row_sim.view(batch_size, words_num)
 
-            row_sim.mul_(5.0).exp_()
-            row_sim, max_row_idx = torch.max(row_sim, dim=1, keepdim=True)  # [48, 1]
-
+            # Apply exponential scaling and max pooling
+            # Shape: [batch_size, 1]
+            row_sim = torch.exp(row_sim * similarity_scale)
+            row_sim, _ = torch.max(row_sim, dim=1, keepdim=True)
             row_sim = torch.log(row_sim)
 
             similarities.append(row_sim)
-
-        local_similarities = torch.cat(similarities, 1).detach().cpu()
-
+        
+        # Concatenate all similarities
+        local_similarities = torch.cat(similarities, dim=1).detach().cpu()
+        
         return local_similarities
 
 
