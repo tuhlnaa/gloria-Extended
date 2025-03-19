@@ -1,10 +1,16 @@
 from pathlib import Path
 
 # CheXpert constants
-CHEXPERT_DATA_DIR = Path("/home/mars/git/embeddingx_v2/data/chexpert/CheXpert-v1.0")
+#CHEXPERT_DATA_DIR = Path("/home/mars/git/embeddingx_v2/data/chexpert/CheXpert-v1.0")
+CHEXPERT_DATA_DIR = Path(r"D:\Kai\DATA_Set_2\X-ray\CheXpert-v1.0")
+
 CHEXPERT_ORIGINAL_TRAIN_CSV = CHEXPERT_DATA_DIR / "train.csv"
-CHEXPERT_TRAIN_CSV = CHEXPERT_DATA_DIR / "train_split.csv"  # train split from train.csv
-CHEXPERT_VALID_CSV = CHEXPERT_DATA_DIR / "valid_split.csv"  # valid split from train.csv
+# CHEXPERT_TRAIN_CSV = CHEXPERT_DATA_DIR / "train_split.csv"  # train split from train.csv
+# CHEXPERT_VALID_CSV = CHEXPERT_DATA_DIR / "valid_split.csv"  # valid split from train.csv
+
+CHEXPERT_TRAIN_CSV = CHEXPERT_DATA_DIR / "train.csv"  # train split from train.csv
+CHEXPERT_VALID_CSV = CHEXPERT_DATA_DIR / "valid.csv"  # valid split from train.csv
+
 CHEXPERT_TEST_CSV = (
     CHEXPERT_DATA_DIR / "valid.csv"
 )  # using validation set as test set (test set label hidden)

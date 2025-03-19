@@ -21,7 +21,7 @@ class PretrainingDataModule(pl.LightningDataModule):
         dataset = self.dataset(self.cfg, split="train", transform=transform)
         return DataLoader(
             dataset,
-            pin_memory=True,
+            pin_memory=False,
             drop_last=True,
             shuffle=True,
             batch_size=self.cfg.train.batch_size,
@@ -34,7 +34,7 @@ class PretrainingDataModule(pl.LightningDataModule):
         dataset = self.dataset(self.cfg, split="valid", transform=transform)
         return DataLoader(
             dataset,
-            pin_memory=True,
+            pin_memory=False,
             drop_last=True,
             shuffle=False,
             collate_fn=self.collate_fn,
@@ -47,7 +47,7 @@ class PretrainingDataModule(pl.LightningDataModule):
         dataset = self.dataset(self.cfg, split="test", transform=transform)
         return DataLoader(
             dataset,
-            pin_memory=True,
+            pin_memory=False,
             shuffle=False,
             collate_fn=self.collate_fn,
             batch_size=self.cfg.train.batch_size,
@@ -67,7 +67,7 @@ class CheXpertDataModule(pl.LightningDataModule):
         dataset = self.dataset(self.cfg, split="train", transform=transform)
         return DataLoader(
             dataset,
-            pin_memory=True,
+            pin_memory=False,
             drop_last=True,
             shuffle=True,
             batch_size=self.cfg.train.batch_size,
@@ -79,7 +79,7 @@ class CheXpertDataModule(pl.LightningDataModule):
         dataset = self.dataset(self.cfg, split="valid", transform=transform)
         return DataLoader(
             dataset,
-            pin_memory=True,
+            pin_memory=False,
             drop_last=True,
             shuffle=False,
             batch_size=self.cfg.train.batch_size,
@@ -91,7 +91,7 @@ class CheXpertDataModule(pl.LightningDataModule):
         dataset = self.dataset(self.cfg, split="test", transform=transform)
         return DataLoader(
             dataset,
-            pin_memory=True,
+            pin_memory=False,
             shuffle=False,
             batch_size=self.cfg.train.batch_size,
             num_workers=self.cfg.train.num_workers,
@@ -110,7 +110,7 @@ class PneumothoraxDataModule(pl.LightningDataModule):
         dataset = self.dataset(self.cfg, split="train", transform=transform)
         return DataLoader(
             dataset,
-            pin_memory=True,
+            pin_memory=False,
             drop_last=True,
             shuffle=True,
             batch_size=self.cfg.train.batch_size,
@@ -122,7 +122,7 @@ class PneumothoraxDataModule(pl.LightningDataModule):
         dataset = self.dataset(self.cfg, split="valid", transform=transform)
         return DataLoader(
             dataset,
-            pin_memory=True,
+            pin_memory=False,
             drop_last=True,
             shuffle=False,
             batch_size=self.cfg.train.batch_size,
@@ -134,7 +134,7 @@ class PneumothoraxDataModule(pl.LightningDataModule):
         dataset = self.dataset(self.cfg, split="test", transform=transform)
         return DataLoader(
             dataset,
-            pin_memory=True,
+            pin_memory=False,
             shuffle=False,
             batch_size=self.cfg.train.batch_size,
             num_workers=self.cfg.train.num_workers,
@@ -158,7 +158,7 @@ class PneumoniaDataModule(pl.LightningDataModule):
         dataset = self.dataset(self.cfg, split="train", transform=transform)
         return DataLoader(
             dataset,
-            pin_memory=True,
+            pin_memory=False,
             drop_last=True,
             shuffle=True,
             collate_fn=self.collate_fn,
@@ -171,7 +171,7 @@ class PneumoniaDataModule(pl.LightningDataModule):
         dataset = self.dataset(self.cfg, split="valid", transform=transform)
         return DataLoader(
             dataset,
-            pin_memory=True,
+            pin_memory=False,
             drop_last=True,
             shuffle=False,
             collate_fn=self.collate_fn,
@@ -184,7 +184,7 @@ class PneumoniaDataModule(pl.LightningDataModule):
         dataset = self.dataset(self.cfg, split="test", transform=transform)
         return DataLoader(
             dataset,
-            pin_memory=True,
+            pin_memory=False,
             shuffle=False,
             collate_fn=self.collate_fn,
             batch_size=self.cfg.train.batch_size,

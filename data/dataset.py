@@ -220,7 +220,7 @@ class CheXpertImageDataset(ImageBaseDataset):
         elif split == "valid":
             return Path(cfg.path.data_dir) / cfg.path.valid_csv # self.chexpert_config.VALID_CSV
         else:  # test
-            return Path(cfg.path.data_dir) / cfg.path.test_csv # self.chexpert_config.TEST_CSV
+            return Path(cfg.path.data_dir) / cfg.path.test_csv  # self.chexpert_config.TEST_CSV
 
 
     def _process_image_paths(self, cfg) -> None:

@@ -104,7 +104,7 @@ class ImageEncoder(nn.Module):
         """
         # Resize input to expected dimensions
         x = nn.functional.interpolate(x, size=(299, 299), mode="bilinear", align_corners=True)
-        x= x[:10,]   # 🛠️
+        #x= x[:10,]   # 🛠️
         # Extract features through backbone layers
         x = self.model.conv1(x)   # (batch_size, 64, 150, 150)
         x = self.model.bn1(x)

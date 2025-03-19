@@ -7,6 +7,7 @@ weights/*
 .neptune/*
 download/*
 pretrained/*
+wandb/*
 
 test_*.py
 test_*.txt

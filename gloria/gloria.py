@@ -250,72 +250,6 @@ def compute_similarities(
         return combined_similarities.detach().cpu().numpy()
     
 
-# def compute_similarities(
-#     gloria_model,
-#     images: torch.Tensor,
-#     texts: Dict[str, torch.Tensor],
-#     similarity_type: Literal["global", "local", "both"] = "both"
-# ) -> np.ndarray:
-#     """
-#     Compute similarities between processed images and texts.
-    
-#     Args:
-#         gloria_model: GLoRIA model loaded via gloria.load_models()
-#         images: Processed images using gloria_model.process_img
-#         texts: Processed text using gloria_model.process_text
-#         similarity_type: Type of similarity to compute ("global", "local", or "both")
-        
-#     Returns:
-#         Array of similarities between each image and text
-        
-#     Raises:
-#         ValueError: If similarity_type is invalid or inputs are not processed
-#     """
-#     # Validate inputs
-#     if similarity_type not in ["global", "local", "both"]:
-#         raise ValueError(
-#             f"similarity_type must be one of ['global', 'local', 'both'], got {similarity_type}"
-#         )
-    
-#     if isinstance(texts, (str, list)):
-#         raise ValueError("Text input not processed - please use gloria_model.process_text")
-    
-#     if isinstance(images, (str, list)):
-#         raise ValueError("Image input not processed - please use gloria_model.process_img")
-    
-#     # Extract embeddings
-#     with torch.no_grad():
-#         img_emb_local, img_emb_global = gloria_model.image_encoder_forward(images)
-#         text_emb_local, text_emb_global, _ = gloria_model.text_encoder_forward(
-#             texts["caption_ids"], 
-#             texts["attention_mask"], 
-#             texts["token_type_ids"]
-#         )
-    
-#     # Compute similarities
-#     similarity_computer = SimilarityComputer()
-    
-#     global_similarities = similarity_computer.compute_global_similarities(
-#         img_emb_global, text_emb_global
-#     )
-    
-#     local_similarities = similarity_computer.compute_local_similarities(
-#         img_emb_local, text_emb_local, texts["cap_lens"]
-#     )
-    
-#     # Return based on requested similarity type
-#     if similarity_type == "global":
-#         return global_similarities.detach().cpu().numpy()
-#     elif similarity_type == "local":
-#         return local_similarities.detach().cpu().numpy()
-#     else:
-#         # Combine similarities
-#         combined_similarities = (local_similarities + global_similarities) / 2
-#         return combined_similarities.detach().cpu().numpy()
-    
-
-    
-
 def zero_shot_classification(gloria_model, imgs, cls_txt_mapping):
     """Load a GLoRIA pretrained classification model
 
@@ -337,9 +271,7 @@ def zero_shot_classification(gloria_model, imgs, cls_txt_mapping):
     # get similarities for each class
     class_similarities = []
     for cls_name, cls_txt in cls_txt_mapping.items():
-        similarities = compute_similarities(
-            gloria_model, imgs, cls_txt, similarity_type="both"
-        )
+        similarities = compute_similarities(gloria_model, imgs, cls_txt, similarity_type="both")
         cls_similarity = similarities.max(axis=1)  # average between class prompts
         class_similarities.append(cls_similarity)
     class_similarities = np.stack(class_similarities, axis=1)

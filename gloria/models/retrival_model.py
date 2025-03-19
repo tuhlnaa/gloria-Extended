@@ -1,5 +1,7 @@
 import torch
 import numpy as np
+import torch.nn.functional as F
+
 from .. import utils
 from ..loss.gloria_loss import compute_attention
 from sklearn import metrics
@@ -152,7 +154,7 @@ class Retriver:
             word = word.squeeze()
             weiContext = weiContext.squeeze()
 
-            row_sim = cosine_similarity(word, weiContext).squeeze()
+            row_sim = F.cosine_similarity(word, weiContext).squeeze()
 
             row_sim.mul_(temp2).exp_()
             if agg == "sum":

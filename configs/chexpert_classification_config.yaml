@@ -1,4 +1,5 @@
 experiment_name: 'chexpert_classifier'
+trial_name: 001
 phase: 'classification'
 device: "cuda:1"
 
@@ -43,12 +44,17 @@ transforms:
     norm: 'half'
     random_crop:
         crop_size: 224
+    random_horizontal_flip: null
+    random_affine: null
+    color_jitter: null
+    
 
 train: 
     batch_size: 64
     num_workers: 16
     loss_fn: 
         type: BCE
+        class_weights: null
     optimizer: 
         name: 'Adam'
         weight_decay: 1e-6
