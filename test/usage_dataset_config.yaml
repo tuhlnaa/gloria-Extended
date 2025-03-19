@@ -1,0 +1,23 @@
+data:
+  dataset: chexpert
+  # frac: 1.0
+  image:
+    imsize: 256
+
+transforms:
+  random_crop:
+    crop_size: 224
+  # random_horizontal_flip: 0.5
+  # random_affine: null
+  # color_jitter: null
+  # norm: norm
+
+train:
+  batch_size: 16
+  num_workers: 0
+
+path:
+  data_dir: "D:\\Kai\\DATA_Set_2\\X-ray\\CheXpert-v1.0-small"
+  train_csv: "train.csv"
+  valid_csv: "valid.csv"
+  test_csv: "valid.csv"  # using validation set as test set (test set labels hidden)

@@ -62,7 +62,7 @@ class ImageBaseDataset(Dataset):
     
     def __init__(
             self,
-            cfg: object,
+            config: object,
             split: str = "train",
             transform: Optional[T.Compose] = None,
         ):
@@ -70,11 +70,11 @@ class ImageBaseDataset(Dataset):
         Initialize the base image dataset.
         
         Args:
-            cfg: Configuration object containing dataset parameters
+            config: Configuration object containing dataset parameters
             split: Data split ('train', 'valid', or 'test')
             transform: Torchvision transforms to apply to images
         """
-        self.cfg = cfg
+        self.config = config
         self.transform = transform
         self.split = split
 
@@ -108,7 +108,7 @@ class ImageBaseDataset(Dataset):
             raise FileNotFoundError(f"Image not found or couldn't be read: {img_path}")
             
         # Resize image to configured dimensions
-        img = self._resize_img(img, self.cfg.data.image.imsize)
+        img = self._resize_img(img, self.config.data.image.imsize)
         pil_img = Image.fromarray(img).convert("RGB")
         
         if self.transform is not None:
@@ -167,7 +167,7 @@ class CheXpertImageDataset(ImageBaseDataset):
     
     def __init__(
         self, 
-        cfg: object, 
+        config: object, 
         split: str = "train", 
         transform: Optional[T.Compose] = None, 
         view_type: str = "Frontal"
@@ -176,17 +176,17 @@ class CheXpertImageDataset(ImageBaseDataset):
         Initialize the CheXpert dataset.
         
         Args:
-            cfg: Configuration object
+            config: Configuration object
             split: Data split ('train', 'valid', or 'test')
             transform: Torchvision transforms to apply
             view_type: Type of X-ray view ('Frontal', 'Lateral', or 'All')
         """
-        super().__init__(cfg, split, transform)
+        super().__init__(config, split, transform)
         
         self.chexpert_config = CheXpertConfig()
         
         #if not self.chexpert_config.DATA_DIR.exists():
-        if not Path(cfg.path.data_dir).exists():
+        if not Path(config.path.data_dir).exists():
             raise RuntimeError(
                 "CheXpert data path not found.\n"
                 "Make sure to download data from:\n"
@@ -195,35 +195,35 @@ class CheXpertImageDataset(ImageBaseDataset):
             )
 
         # Load the appropriate CSV file based on split
-        csv_path = self._get_csv_path(cfg, split)
+        csv_path = self._get_csv_path(config, split)
         self.df = pd.read_csv(csv_path)
         
         # Apply data fraction sampling if specified in config
-        if hasattr(cfg.data, 'frac') and cfg.data.frac != 1 and split == "train":
-            self.df = self.df.sample(frac=cfg.data.frac, random_state=42)
+        if hasattr(config.data, 'frac') and config.data.frac != 1 and split == "train":
+            self.df = self.df.sample(frac=config.data.frac, random_state=42)
 
         # Filter by view type if specified
         if view_type != "All":
             self.df = self.df[self.df[self.chexpert_config.VIEW_COL] == view_type]
 
         # Process image paths to be absolute
-        self._process_image_paths(cfg)
+        self._process_image_paths(config)
         
         # Handle missing values and uncertain labels
         self._preprocess_labels()
 
 
-    def _get_csv_path(self, cfg: object,  split: str) -> Path:
+    def _get_csv_path(self, config: object,  split: str) -> Path:
         """Get the CSV file path for the given split."""
         if split == "train":
-            return Path(cfg.path.data_dir) / cfg.path.train_csv # self.chexpert_config.TRAIN_CSV
+            return Path(config.path.data_dir) / config.path.train_csv # self.chexpert_config.TRAIN_CSV
         elif split == "valid":
-            return Path(cfg.path.data_dir) / cfg.path.valid_csv # self.chexpert_config.VALID_CSV
+            return Path(config.path.data_dir) / config.path.valid_csv # self.chexpert_config.VALID_CSV
         else:  # test
-            return Path(cfg.path.data_dir) / cfg.path.test_csv  # self.chexpert_config.TEST_CSV
+            return Path(config.path.data_dir) / config.path.test_csv  # self.chexpert_config.TEST_CSV
 
 
-    def _process_image_paths(self, cfg) -> None:
+    def _process_image_paths(self, config) -> None:
         """
         Process image paths to be absolute paths using pathlib.
         Converts relative paths in the dataset to absolute paths.
@@ -233,7 +233,7 @@ class CheXpertImageDataset(ImageBaseDataset):
         def convert_to_absolute_path(relative_path: str) -> str:
             path_components = relative_path.split("/")[1:]
             relative_subpath = Path(*path_components)
-            absolute_path = Path(cfg.path.data_dir) / relative_subpath
+            absolute_path = Path(config.path.data_dir) / relative_subpath
             return str(absolute_path)
             
         # Apply the conversion function to all paths in the dataframe
@@ -269,12 +269,12 @@ class CheXpertImageDataset(ImageBaseDataset):
         return len(self.df)
 
 
-def build_transformation(cfg: object, split: str) -> T.Compose:
+def build_transformation(config: object, split: str) -> T.Compose:
     """
     Build image transformation pipeline based on configuration.
     
     Args:
-        cfg: Configuration object with transform parameters
+        config: Configuration object with transform parameters
         split: Data split ('train', 'valid', or 'test')
         
     Returns:
@@ -285,52 +285,52 @@ def build_transformation(cfg: object, split: str) -> T.Compose:
     # Apply data augmentation only for training
     if split == "train":
         # Random crop
-        if hasattr(cfg.transforms, 'random_crop') and cfg.transforms.random_crop is not None:
-            transforms.append(T.RandomCrop(cfg.transforms.random_crop.crop_size))
+        if hasattr(config.transforms, 'random_crop') and config.transforms.random_crop is not None:
+            transforms.append(T.RandomCrop(config.transforms.random_crop.crop_size))
             
         # Random horizontal flip
-        if hasattr(cfg.transforms, 'random_horizontal_flip') and cfg.transforms.random_horizontal_flip is not None:
-            transforms.append(T.RandomHorizontalFlip(p=cfg.transforms.random_horizontal_flip))
+        if hasattr(config.transforms, 'random_horizontal_flip') and config.transforms.random_horizontal_flip is not None:
+            transforms.append(T.RandomHorizontalFlip(p=config.transforms.random_horizontal_flip))
             
         # Random affine transformation
-        if hasattr(cfg.transforms, 'random_affine') and cfg.transforms.random_affine is not None:
+        if hasattr(config.transforms, 'random_affine') and config.transforms.random_affine is not None:
             transforms.append(
                 T.RandomAffine(
-                    degrees=cfg.transforms.random_affine.degrees,
-                    translate=list(cfg.transforms.random_affine.translate),
-                    scale=list(cfg.transforms.random_affine.scale),
+                    degrees=config.transforms.random_affine.degrees,
+                    translate=list(config.transforms.random_affine.translate),
+                    scale=list(config.transforms.random_affine.scale),
                 )
             )
             
         # Color jitter
-        if hasattr(cfg.transforms, 'color_jitter') and cfg.transforms.color_jitter is not None:
+        if hasattr(config.transforms, 'color_jitter') and config.transforms.color_jitter is not None:
             transforms.append(
                 T.ColorJitter(
-                    brightness=list(cfg.transforms.color_jitter.brightness),
-                    contrast=list(cfg.transforms.color_jitter.contrast),
+                    brightness=list(config.transforms.color_jitter.brightness),
+                    contrast=list(config.transforms.color_jitter.contrast),
                 )
             )
     else:
         # For validation/test, use center crop instead of random crop
-        if hasattr(cfg.transforms, 'random_crop') and cfg.transforms.random_crop is not None:
-            transforms.append(T.CenterCrop(cfg.transforms.random_crop.crop_size))
+        if hasattr(config.transforms, 'random_crop') and config.transforms.random_crop is not None:
+            transforms.append(T.CenterCrop(config.transforms.random_crop.crop_size))
     
     # Convert to tensor (required for all splits)
     transforms.append(T.ToTensor())
     
     # Apply normalization if specified
-    if hasattr(cfg.transforms, 'norm') and cfg.transforms.norm is not None:
-        if cfg.transforms.norm == "imagenet":
+    if hasattr(config.transforms, 'norm') and config.transforms.norm is not None:
+        if config.transforms.norm == "imagenet":
             transforms.append(T.Normalize(
                 mean=[0.485, 0.456, 0.406], 
                 std=[0.229, 0.224, 0.225]
             ))
-        elif cfg.transforms.norm == "half":
+        elif config.transforms.norm == "half":
             transforms.append(T.Normalize(
                 mean=[0.5, 0.5, 0.5], 
                 std=[0.5, 0.5, 0.5]
             ))
         else:
-            raise ValueError(f"Unsupported normalization method: {cfg.transforms.norm}")
+            raise ValueError(f"Unsupported normalization method: {config.transforms.norm}")
     
     return T.Compose(transforms)

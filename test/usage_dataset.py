@@ -5,6 +5,7 @@ import numpy as np
 import torch.backends.cudnn as cudnn
 
 from pathlib import Path
+from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 
 PROJECT_ROOT = Path(__file__).parents[1]
@@ -28,55 +29,22 @@ def set_seed(seed: int = 42) -> None:
     cudnn.deterministic = True
 
 
-class SimpleConfig:
-    """Simple configuration class to mimic the expected config structure."""
-    
-    def __init__(self):
-        self.data = type('obj', (), {
-            'dataset': 'chexpert',
-            #'frac': 1.0,
-            'image': type('obj', (), {'imsize': 256}) 
-        })
-        
-        self.transforms = type('obj', (), {
-            'random_crop': type('obj', (), {'crop_size': 224}),
-            # 'random_horizontal_flip': 0.5,
-            # 'random_affine': None,
-            # 'color_jitter': None,
-            # 'norm': 'imagenet'
-        })
-        
-        self.train = type('obj', (), {
-            'batch_size': 16,
-            'num_workers': 0
-        })
-
-        self.path = type('obj', (), {
-            'data_dir': r"D:\Kai\DATA_Set_2\X-ray\CheXpert-v1.0-small",
-            "train_csv": "train.csv",
-            "valid_csv": "valid.csv",
-            "test_csv": "valid.csv"  # using validation set as test set (test set labels hidden)
-        })
-
-
 def main():
     set_seed()
-    
-    # Create a simple configuration
-    cfg = SimpleConfig()
+    config = OmegaConf.load("./test/usage_dataset_config.yaml")
     
     # Create transform
-    transform = build_transformation(cfg, "train")
+    transform = build_transformation(config, "train")
     
     # Create dataset
-    dataset = CheXpertImageDataset(cfg, split="train", transform=transform, view_type="Frontal")
+    dataset = CheXpertImageDataset(config, split="train", transform=transform, view_type="Frontal")
     
     # Create dataloader
     data_loader = DataLoader(
         dataset,
-        batch_size=cfg.train.batch_size,
+        batch_size=config.train.batch_size,
         shuffle=True,
-        num_workers=cfg.train.num_workers,
+        num_workers=config.train.num_workers,
         pin_memory=False,
         drop_last=True
     )
