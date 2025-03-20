@@ -1,17 +1,20 @@
-from itertools import product
+
 import os
 import torch
-import numpy as np
 import copy
 import random
+import numpy as np
 import pandas as pd
+import torch.nn as nn
 import segmentation_models_pytorch as smp
+
+from itertools import product
+from typing import Dict, Literal, Union, List
 
 from . import builder
 from . import utils
 from . import constants
 from .models.vision_model import PretrainedImageClassifier
-from typing import Dict, Literal, Union, List
 
 
 np.random.seed(6)
@@ -192,6 +195,48 @@ def load_img_segmentation_model(
     return seg_model.to(device)
 
 
+def zero_shot_classification(
+        model: nn.Module, 
+        images: torch.Tensor, 
+        class_text_mapping: Dict[str, Dict[str, torch.Tensor]]
+    ) -> pd.DataFrame:
+    """
+    Perform zero-shot classification using a GLoRIA pretrained model.
+    
+    Args:
+        model: GLoRIA model loaded via gloria.load_models()
+        images: Processed images using model.process_img
+        class_text_mapping: Dictionary mapping class names to processed text embeddings.
+                           Each class can have multiple associated text prompts.
+    
+    Returns:
+        DataFrame with similarity scores between each image and class
+    """
+    # Calculate similarities for each class
+    class_similarities = []
+    class_names = []
+    
+    for class_name, class_text in class_text_mapping.items():
+        # Compute similarities between images and text prompts for this class
+        similarities = compute_similarities(model, images, class_text)
+        
+        # Take max similarity across all prompts for this class
+        max_similarities = similarities.max(axis=1)
+        
+        class_similarities.append(max_similarities)
+        class_names.append(class_name)
+    
+    # Stack all class similarities into a single array
+    similarity_matrix = np.stack(class_similarities, axis=1)
+    
+    # Normalize similarities across classes (only for batches with multiple images)
+    if similarity_matrix.shape[0] > 1:
+        similarity_matrix = utils.normalize(similarity_matrix)
+    
+    # Convert to DataFrame for easier handling
+    return pd.DataFrame(similarity_matrix, columns=class_names)
+
+
 def compute_similarities(
         gloria_model,
         images: torch.Tensor,
@@ -228,8 +273,8 @@ def compute_similarities(
     
     # Extract Embedded Features
     with torch.no_grad():
-        img_emb_local, img_emb_global = gloria_model.image_encoder_forward(images)
-        text_emb_local, text_emb_global, _ = gloria_model.text_encoder_forward(
+        img_emb_local, img_emb_global = gloria_model.encode_images(images)
+        text_emb_local, text_emb_global, _ = gloria_model.encode_text(
             texts["caption_ids"], 
             texts["attention_mask"], 
             texts["token_type_ids"]
@@ -248,42 +293,6 @@ def compute_similarities(
         # Combine similarities
         combined_similarities = (local_similarities + global_similarities) / 2
         return combined_similarities.detach().cpu().numpy()
-    
-
-def zero_shot_classification(gloria_model, imgs, cls_txt_mapping):
-    """Load a GLoRIA pretrained classification model
-
-    Parameters
-    ----------
-    gloria_model : str
-        GLoRIA model, load via gloria.load_models()
-    imgs:
-        processed images using gloria_model.process_img
-    cls_txt_mapping:
-        dictionary of class to processed text mapping. Each class can have more than one associated text
-
-    Returns
-    -------
-    cls_similarities :
-        similartitie between each imgs and text
-    """
-
-    # get similarities for each class
-    class_similarities = []
-    for cls_name, cls_txt in cls_txt_mapping.items():
-        similarities = compute_similarities(gloria_model, imgs, cls_txt, similarity_type="both")
-        cls_similarity = similarities.max(axis=1)  # average between class prompts
-        class_similarities.append(cls_similarity)
-    class_similarities = np.stack(class_similarities, axis=1)
-
-    # normalize across class
-    if class_similarities.shape[0] > 1:
-        class_similarities = utils.normalize(class_similarities)
-    class_similarities = pd.DataFrame(
-        class_similarities, columns=cls_txt_mapping.keys()
-    )
-
-    return class_similarities
 
 
 def generate_chexpert_class_prompts(num_prompts: int = 5) -> Dict[str, List[str]]:
@@ -313,7 +322,7 @@ def generate_chexpert_class_prompts(num_prompts: int = 5) -> Dict[str, List[str]
         all_prompts = []
         for severity, subtype, location in product(severities, subtypes, locations):
             # Skip empty prompts and clean up extra spaces
-            combined = f"{severity} {subtype} {location}"#.strip()
+            combined = f"{severity} {subtype} {location}"#.strip()  # 🛠️
             if combined != "  ":  # Avoid empty strings
                 all_prompts.append(combined)
 

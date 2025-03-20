@@ -1,12 +1,8 @@
-from typing import Optional, Tuple, Union
-from numpy.lib.function_base import extract
 import torch
 import torch.nn as nn
+from typing import Optional, Tuple, Union
 
 from . import cnn_backbones
-from omegaconf import OmegaConf
-
-
 
 
 class ImageEncoder(nn.Module):
@@ -32,12 +28,11 @@ class ImageEncoder(nn.Module):
         self.output_dim = config.model.text.embedding_dim
         self.model_name = config.model.vision.model_name
         
-        # Get backbone model
-        self.model, self.feature_dim, self.interm_feature_dim = self._get_backbone(
-            model_name=self.model_name,
-            pretrained=config.model.vision.pretrained
+        self.model, self.feature_dim, self.interm_feature_dim = cnn_backbones.get_backbone(
+            name=self.model_name, 
+            weights=config.model.vision.pretrained
         )
-        
+
         # Define embedding layers
         self.global_embedder = nn.Linear(self.feature_dim, self.output_dim)
         self.local_embedder = nn.Conv2d(
@@ -194,10 +189,11 @@ class ImageClassifier(nn.Module):
         ):
         super().__init__()
         
-        model_name = config.model.vision.model_name
-        model_function = getattr(cnn_backbones, model_name)
-        self.img_encoder, self.feature_dim, _ = model_function(pretrained=pretrained)
-        
+        self.img_encoder, self.feature_dim, _ = cnn_backbones.get_backbone(
+            name=config.model.vision.model_name, 
+            weights=config.model.vision.pretrained
+        )
+
         # Determine number of target classes
         if num_classes is None:
             num_classes = config.model.vision.num_targets

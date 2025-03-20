@@ -46,7 +46,7 @@ class Retriver:
         )
 
         with torch.no_grad():
-            text_emb_l, text_emb_g, sents = self.gloria.text_encoder_forward(
+            text_emb_l, text_emb_g, sents = self.gloria.encode_text(
                 caption_ids, attention_mask, token_type_ids
             )
 
@@ -68,7 +68,7 @@ class Retriver:
         with torch.no_grad():
             imgs = self.gloria.process_img(img)
             img_tensors = torch.stack(imgs).to(device=self.device)
-            img_emb_l, img_emb_g = self.gloria.image_encoder_forward(img_tensors)
+            img_emb_l, img_emb_g = self.gloria.encode_images(img_tensors)
 
         del img_tensors
 

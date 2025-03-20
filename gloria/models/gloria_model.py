@@ -1,11 +1,12 @@
-from typing import Dict, List, Tuple, Union
+import re
+import cv2
 import torch
 import torch.nn as nn
-import cv2
-import re
-import numpy as np
-from sklearn import metrics
 import torch.nn.functional as F
+import numpy as np
+
+from sklearn import metrics
+from typing import Dict, List, Tuple, Union, Optional
 
 from PIL import Image
 from .. import builder
@@ -16,91 +17,189 @@ from nltk.tokenize import RegexpTokenizer
 
 
 class GLoRIA(nn.Module):
+    """
+    GLoRIA: A Global-Local Representation Learning Framework for medical images.
+    
+    This model learns multimodal representations by contrasting image regions
+    with words in paired radiology reports.
+    """
+    
     def __init__(self, config):
-        super(GLoRIA, self).__init__()
-
+        super().__init__()
+        
         self.config = config
+        
+        # Initialize encoders
         self.text_encoder = builder.build_text_model(config)
         self.img_encoder = builder.build_img_model(config)
-
-        self.local_loss = loss.gloria_loss.local_loss
-        self.global_loss = loss.gloria_loss.global_loss
-        self.local_loss_weight = self.config.model.gloria.local_loss_weight
-        self.global_loss_weight = self.config.model.gloria.global_loss_weight
-
-        self.temp1 = self.config.model.gloria.temp1
-        self.temp2 = self.config.model.gloria.temp2
-        self.temp3 = self.config.model.gloria.temp3
-        self.batch_size = self.config.train.batch_size
-
-        self.tokenizer = AutoTokenizer.from_pretrained(self.config.model.text.bert_type)
-        self.ixtoword = {v: k for k, v in self.tokenizer.get_vocab().items()}
-        self.word_tokenizer = RegexpTokenizer(r"\w+")
-
-
-    def forward(self, x):
-        # img encoder branch
-        img_emb_local, img_emb_g = self.image_encoder_forward(x["imgs"])
-
-        # text encorder branch
-        text_emb_local, text_emb_g, sents = self.text_encoder_forward(
-            x["caption_ids"], x["attention_mask"], x["token_type_ids"]
-        )
-
-        return img_emb_local, img_emb_g, text_emb_local, text_emb_g, sents
+        
+        # Get loss functions
+        self.local_loss_fn = loss.gloria_loss.local_loss
+        self.global_loss_fn = loss.gloria_loss.global_loss
+        
+        # Get loss weights from config
+        self.local_loss_weight = config.model.gloria.local_loss_weight
+        self.global_loss_weight = config.model.gloria.global_loss_weight
+        
+        # Temperature parameters for scaling similarity scores
+        self.temp_attention = config.model.gloria.temp1
+        self.temp_similarity = config.model.gloria.temp2
+        self.temp_loss = config.model.gloria.temp3
+        
+        # Initialize tokenizer
+        self._setup_tokenizer()
     
 
-    def text_encoder_forward(self, caption_ids, attention_mask, token_type_ids):
-        # Forward pass through the BERT encoder
-        text_emb_l, text_emb_g, sents = self.text_encoder(
-            caption_ids, attention_mask, token_type_ids
+    def _setup_tokenizer(self):
+        """Set up the tokenizer for text processing."""
+        bert_type = self.config.model.text.bert_type
+        self.tokenizer = AutoTokenizer.from_pretrained(bert_type)
+        self.ixtoword = {v: k for k, v in self.tokenizer.get_vocab().items()}
+        self.word_tokenizer = RegexpTokenizer(r"\w+")
+    
+
+    def forward(self, batch):
+        """Forward pass through the GLoRIA model."""
+        # Process images
+        img_emb_local, img_emb_global = self.encode_images(batch["imgs"])
+        
+        # Process text
+        text_emb_local, text_emb_global, sents = self.encode_text(
+            batch["caption_ids"], 
+            batch["attention_mask"], 
+            batch["token_type_ids"]
         )
-        return text_emb_l, text_emb_g, sents
+        
+        return img_emb_local, img_emb_global, text_emb_local, text_emb_global, sents
+    
 
+    def encode_text(self, caption_ids, attention_mask, token_type_ids):
+        """
+        Encode text inputs using the text encoder.
+        
+        Args:
+            caption_ids: Token IDs from tokenizer
+            attention_mask: Attention mask for BERT
+            token_type_ids: Token type IDs for BERT
+            
+        Returns:
+            Tuple containing:
+                - text_emb_local: Local text embeddings
+                - text_emb_global: Global text embedding
+                - sents: Tokenized sentences
+        """
+        return self.text_encoder(caption_ids, attention_mask, token_type_ids)
+    
 
-    def image_encoder_forward(self, imgs):
-        # Forward pass through the encoder.
-        img_feat_g, img_emb_local = self.img_encoder(imgs, get_local=True)
-        # Generate embeddings from extracted features.
-        img_emb_g, img_emb_local = self.img_encoder.generate_embeddings(img_feat_g, img_emb_local)
+    def encode_images(self, images):
+        """
+        Encode images using the image encoder.
+        
+        Args:
+            images: Batch of images
+            
+        Returns:
+            Tuple containing:
+                - img_emb_local: Local image embeddings
+                - img_emb_global: Global image embedding
+        """
+        # Extract features from the image encoder
+        img_feat_global, img_feat_local = self.img_encoder(images, get_local=True)
+        
+        # Generate embeddings from extracted features
+        img_emb_global, img_emb_local = self.img_encoder.generate_embeddings(
+            img_feat_global, img_feat_local
+        )
+        
+        return img_emb_local, img_emb_global
+    
 
-        return img_emb_local, img_emb_g
+    def compute_loss(self, img_emb_local, img_emb_global, text_emb_local, text_emb_global, sents):
+        """
+        Compute the combined global and local losses.
+        
+        Args:
+            img_emb_local: Local image embeddings
+            img_emb_global: Global image embedding
+            text_emb_local: Local text embeddings
+            text_emb_global: Global text embedding
+            sents: Tokenized sentences
+            
+        Returns:
+            Tuple containing:
+                - total_loss: Combined weighted loss
+                - attn_maps: Attention maps for visualization
+        """
+        # Compute local loss (between image regions and words)
+        local_loss_i2t, local_loss_t2i, attn_maps = self._compute_local_loss(
+            img_emb_local, text_emb_local, sents
+        )
+        
+        # Compute global loss (between global image and text embeddings)
+        global_loss_i2t, global_loss_t2i = self._compute_global_loss(
+            img_emb_global, text_emb_global
+        )
+        
+        # Combine losses with weights
+        local_loss = (local_loss_i2t + local_loss_t2i) * self.local_loss_weight
+        global_loss = (global_loss_i2t + global_loss_t2i) * self.global_loss_weight
+        total_loss = local_loss + global_loss
+        
+        return total_loss, attn_maps
+    
 
-
-    def _calc_local_loss(self, img_emb_l, text_emb_l, sents):
-
-        cap_lens = [
-            len([w for w in sent if not w.startswith("[")]) + 1 for sent in sents
+    def _compute_local_loss(self, img_emb_local, text_emb_local, sents):
+        """
+        Compute local contrastive loss between image regions and words.
+        
+        Args:
+            img_emb_local: Local image embeddings
+            text_emb_local: Local text embeddings
+            sents: Tokenized sentences
+            
+        Returns:
+            Tuple containing:
+                - local_loss_i2t: Loss for image-to-text matching
+                - local_loss_t2i: Loss for text-to-image matching
+                - attn_maps: Attention maps for visualization
+        """
+        # Calculate caption lengths excluding special tokens
+        caption_lengths = [
+            len([word for word in sent if not word.startswith("[")]) + 1 
+            for sent in sents
         ]
-        l_loss0, l_loss1, attn_maps = self.local_loss(
-            img_emb_l,
-            text_emb_l,
-            cap_lens,
-            temp1=self.temp1,
-            temp2=self.temp2,
-            temp3=self.temp3,
+        
+        # Compute local loss with temperature parameters
+        local_loss_i2t, local_loss_t2i, attn_maps = self.local_loss_fn(
+            img_emb_local,
+            text_emb_local,
+            caption_lengths,
+            temp_attention=self.temp_attention,
+            temp_similarity=self.temp_similarity,
+            temp_loss=self.temp_loss,
         )
-        return l_loss0, l_loss1, attn_maps
+        
+        return local_loss_i2t, local_loss_t2i, attn_maps
+    
 
-
-    def _calc_global_loss(self, img_emb_g, text_emb_g):
-        g_loss0, g_loss1 = self.global_loss(img_emb_g, text_emb_g, temp3=self.temp3)
-        return g_loss0, g_loss1
-
-
-    def calc_loss(self, img_emb_l, img_emb_g, text_emb_l, text_emb_g, sents):
-
-        l_loss0, l_loss1, attn_maps = self._calc_local_loss(
-            img_emb_l, text_emb_l, sents
+    def _compute_global_loss(self, img_emb_global, text_emb_global):
+        """
+        Compute global contrastive loss between image and text embeddings.
+        
+        Args:
+            img_emb_global: Global image embedding
+            text_emb_global: Global text embedding
+            
+        Returns:
+            Tuple containing:
+                - global_loss_i2t: Loss for image-to-text matching
+                - global_loss_t2i: Loss for text-to-image matching
+        """
+        return self.global_loss_fn(
+            img_emb_global, 
+            text_emb_global, 
+            temperature=self.temp_loss
         )
-        g_loss0, g_loss1 = self._calc_global_loss(img_emb_g, text_emb_g)
-
-        # weighted loss
-        loss = 0
-        loss += (l_loss0 + l_loss1) * self.local_loss_weight
-        loss += (g_loss0 + g_loss1) * self.global_loss_weight
-
-        return loss, attn_maps
 
 
     @staticmethod
