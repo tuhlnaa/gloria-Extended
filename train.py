@@ -1,5 +1,6 @@
 """Main training script for RSNA trauma detection."""
 
+import argparse
 import torch
 import random
 import numpy as np
@@ -15,7 +16,7 @@ from torch.utils.data import DataLoader
 from flash.core.optimizers import LinearWarmupCosineAnnealingLR
 
 from configs.config import TrainingConfig, parse_args
-from data.dataset import get_motion_segmentation_dataloader
+from data.dataset import get_chexpert_dataloader, get_motion_segmentation_dataloader
 from models.losses import CombinedLoss
 from engine.trainer import Trainer
 from utils.logging_utils import LoggingManager
@@ -64,68 +65,52 @@ def create_criterion() -> Dict[str, nn.Module]:
     return criterion
 
 
-def setup_training(config: TrainingConfig) -> Tuple[nn.Module, torch.device, Dict[str, DataLoader]]:
+def setup_training(config, args) -> Tuple[nn.Module, torch.device, Dict[str, DataLoader]]:
 
     # Initialize logger with appropriate configuration
     neptune_config = None
     clearml_config = None
-    if config.logger == 'neptune':
-        if not config.neptune_project or not config.neptune_api_token:
+    if args.logger == 'neptune':
+        if not args.neptune_project or not args.neptune_api_token:
             raise ValueError("Neptune project and API token required when using Neptune logger")
 
         neptune_config = {
-            'project': config.neptune_project,
-            'api_token': config.neptune_api_token,
-            'experiment_name': config.experiment_name,
-            'run_id': config.neptune_run_id
+            'project': args.neptune_project,
+            'api_token': args.neptune_api_token,
+            'experiment_name': args.experiment_name,
+            'run_id': args.neptune_run_id
         }
 
-    elif config.logger == 'clearml':
+    elif args.logger == 'clearml':
         clearml_config = {
-            'project': config.clearml_project,
-            'task_name': config.experiment_name,
-            'task_type': config.clearml_task_type,
-            'reuse_last_task_id': config.clearml_task_id,
-            "tags": config.clearml_tags,
+            'project': args.clearml_project,
+            'task_name': args.experiment_name,
+            'task_type': args.clearml_task_type,
+            'reuse_last_task_id': args.clearml_task_id,
+            "tags": args.clearml_tags,
         }
 
     logger = LoggingManager(
-        output_dir=config.output_dir,
-        logger_type=config.logger,
+        output_dir=args.output_dir,
+        logger_type=args.logger,
         neptune_config=neptune_config,
         clearml_config=clearml_config
     )
 
     # Set random seed for reproducibility
-    set_seed(config.seed)
+    set_seed(args.seed)
 
     # Setup data loaders
-    train_loader = get_motion_segmentation_dataloader(
-        img_dir=config.data_dir / "train",
-        mask_dir=config.data_dir / "train_mask",
-        csv_path=config.csv_path,
-        batch_size=config.batch_size,
-        split_mode="train", 
-        selected_classes=config.selected_classes,
-        num_workers=config.num_workers,
-    )
-    val_loader = get_motion_segmentation_dataloader(
-        img_dir=config.data_dir / "val",
-        mask_dir=config.data_dir / "val_mask",
-        csv_path=config.csv_path,
-        batch_size=2,
-        split_mode="val", 
-        selected_classes=config.selected_classes,
-        num_workers=config.num_workers,
-    )
+    train_loader = get_chexpert_dataloader(config, split="train", view_type="Frontal")
+    val_loader = get_chexpert_dataloader(config, split="valid", view_type="Frontal")
 
     # Initialize model with support for resuming
     model = smp.PSPNet(
         encoder_name="resnet34",        # Choose encoder
         encoder_weights="imagenet",     # Use pre-trained weights
         in_channels=3,                  # RGB input
-        classes=config.num_classes,     # Number of classes (background + foreground)
-    ).to(config.device)
+        classes=args.num_classes,     # Number of classes (background + foreground)
+    ).to(args.device)
 
     logger.log_model_summary(model)
     
@@ -208,19 +193,44 @@ def run_training_pipeline(config: TrainingConfig) -> dict:
     logger.close()  # Cleanup
 
 
-def main():
-    """Main function with enhanced features."""
+def parse_arguments() -> argparse.Namespace:
+    """Parse command line arguments for the training script."""
+    parser = argparse.ArgumentParser(description="GLoRIA training and evaluation script")
+    
+    # Basic configuration
+    parser.add_argument("--config", type=str, required=True, help="Path to the configuration file")
+    parser.add_argument("--train", action="store_true", help="Run model training")
+    parser.add_argument("--test", action="store_true", help="Run model evaluation")
+    parser.add_argument("--ckpt_path", type=str, default=None, help="Path to the model checkpoint")
+    
+    # Experiment settings
+    parser.add_argument("--random_seed", type=int, default=23, help="Random seed for reproducibility",)
+    parser.add_argument("--train_pct", type=float, default=1.0, help="Percentage of training data to use")
+    parser.add_argument("--splits", type=int, default=1, help="Number of training splits to use")
+    
+    # Device configuration
+    parser.add_argument("--device", type=str, default="cuda:0", help="Device to use for training")
+    
+    # Add PyTorch Lightning Trainer arguments
+    parser = Trainer.add_argparse_args(parser)
+    
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_arguments()
+    config = OmegaConf.load(args.config)
     config = parse_args()
     
-    # Create output directory
-    output_path = Path(config.output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
+    # # Create output directory
+    # output_path = Path(config.output_dir)
+    # output_path.mkdir(parents=True, exist_ok=True)
     
-    # Save full config
-    OmegaConf.save(config=OmegaConf.create(config), f=output_path / 'config.yaml')
+    # # Save full config
+    # OmegaConf.save(config=OmegaConf.create(config), f=output_path / 'config.yaml')
 
     # Train model
-    run_training_pipeline(config)
+    run_training_pipeline(args, config)
 
     # Cleanup logging
     pass

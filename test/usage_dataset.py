@@ -6,12 +6,11 @@ import torch.backends.cudnn as cudnn
 
 from pathlib import Path
 from omegaconf import OmegaConf
-from torch.utils.data import DataLoader
 
 PROJECT_ROOT = Path(__file__).parents[1]
 sys.path.append(str(PROJECT_ROOT))
 
-from data.dataset import CheXpertImageDataset, build_transformation
+from data.dataset import get_chexpert_dataloader
 
 
 def set_seed(seed: int = 42) -> None:
@@ -33,22 +32,9 @@ def main():
     set_seed()
     config = OmegaConf.load("./test/usage_dataset_config.yaml")
     
-    # Create transform
-    transform = build_transformation(config, "train")
-    
-    # Create dataset
-    dataset = CheXpertImageDataset(config, split="train", transform=transform, view_type="Frontal")
-    
     # Create dataloader
-    data_loader = DataLoader(
-        dataset,
-        batch_size=config.train.batch_size,
-        shuffle=True,
-        num_workers=config.train.num_workers,
-        pin_memory=False,
-        drop_last=True
-    )
-    
+    data_loader = get_chexpert_dataloader(config, split="train", view_type="Frontal")
+
     # Iterate through batches
     for batch_idx, (images, labels) in enumerate(data_loader):
         print(f"Batch {batch_idx + 1}:")

@@ -4,10 +4,6 @@ for Label-efficient Medical Image Recognition
 
 Dataset and transformation utilities for medical image processing.
 """
-from enum import Enum
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
-
 import cv2
 import torch
 import torchvision.transforms as T
@@ -15,13 +11,12 @@ import numpy as np
 import pandas as pd
 
 from PIL import Image
-from torch.utils.data import Dataset
-from dataclasses import dataclass
-
-
-from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
-from typing import List, Dict
+from torch.utils.data import Dataset
+from torch.utils.data import DataLoader
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Tuple, Union
 
 @dataclass
 class CheXpertConfig:
@@ -334,3 +329,55 @@ def build_transformation(config: object, split: str) -> T.Compose:
             raise ValueError(f"Unsupported normalization method: {config.transforms.norm}")
     
     return T.Compose(transforms)
+
+
+def get_chexpert_dataloader(
+        config,
+        split: str = "train",
+        view_type: str = "Frontal",
+        transform: Optional[T.Compose] = None, 
+    ) -> DataLoader:
+    """
+    Create a DataLoader for the CheXpert medical imaging dataset.
+    
+    Args:
+        config: Configuration object containing dataset parameters
+            Expected structure:
+            - config.path.data_dir: Base directory containing CheXpert data
+            - config.path.{split}_csv: Path to the specific split CSV file
+            - config.train.batch_size: Batch size
+            - config.train.num_workers: Number of workers
+            - config.data.frac: Optional fraction of data to use (for training)
+        split: Dataset split ('train', 'valid', or 'test')
+        view_type: Type of X-ray view ('Frontal', 'Lateral', or 'All')
+        transform: Optional custom transformation pipeline; if None, uses transforms built from config
+        
+    Returns:
+        DataLoader for the CheXpert dataset
+    """
+    # Create transformation if not provided
+    if transform is None:
+        transform = build_transformation(config, split)
+    
+    # Create dataset
+    dataset = CheXpertImageDataset(
+        config=config,
+        split=split,
+        transform=transform,
+        view_type=view_type
+    )
+    
+    if len(dataset) == 0:
+        raise ValueError(f"Dataset is empty! No images found. Please check the paths and file formats.")
+    
+    # Create dataloader with parameters from config
+    dataloader = DataLoader(
+        dataset,
+        batch_size=config.train.batch_size,
+        shuffle=(split == "train"),
+        num_workers=config.train.num_workers,
+        pin_memory=getattr(config.train, "pin_memory", False),
+        drop_last=getattr(config.train, "drop_last", False) if split == "train" else True
+    )
+    
+    return dataloader

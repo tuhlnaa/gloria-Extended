@@ -134,6 +134,7 @@ def run_experiment(config: Dict, args: argparse.Namespace) -> None:
         new_lr = lr_finder.suggestion()
         model.lr = new_lr
         print(f"{'='*40} Learning rate updated to {new_lr} {'='*40}")
+    # breakpoint()
     
     # Train model
     if args.train:

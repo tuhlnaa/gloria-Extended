@@ -1,4 +1,4 @@
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 from numpy.lib.function_base import extract
 import torch
 import torch.nn as nn
@@ -7,23 +7,34 @@ from . import cnn_backbones
 from omegaconf import OmegaConf
 
 
+
+
 class ImageEncoder(nn.Module):
     """
     Image encoder for GLoRIA model that extracts both global and local features.
     
     This encoder utilizes CNN backbones to extract features and provides 
     embeddings for both global image context and local image regions.
+    
+    Attributes:
+        output_dim: Dimension of output embeddings
+        model_name: Name of the CNN backbone model
+        model: CNN backbone model for feature extraction
+        feature_dim: Dimension of global features
+        interm_feature_dim: Dimension of intermediate features
+        global_embedder: Linear layer for global feature embedding
+        local_embedder: Convolutional layer for local feature embedding
+        pool: Global pooling layer
     """
     def __init__(self, config):
         super().__init__()
         
-        self.config = config
         self.output_dim = config.model.text.embedding_dim
         self.model_name = config.model.vision.model_name
         
         # Get backbone model
-        model_function = getattr(cnn_backbones, self.model_name)
-        self.model, self.feature_dim, self.interm_feature_dim = model_function(
+        self.model, self.feature_dim, self.interm_feature_dim = self._get_backbone(
+            model_name=self.model_name,
             pretrained=config.model.vision.pretrained
         )
         
@@ -42,9 +53,20 @@ class ImageEncoder(nn.Module):
         
         # Freeze CNN if specified in config
         if config.model.vision.freeze_cnn:
-            print("Freezing CNN model")
-            for param in self.model.parameters():
-                param.requires_grad = False
+            self._freeze_backbone()
+
+
+    def _get_backbone(self, model_name: str, pretrained: bool = True) -> Tuple:
+        """Initialize the backbone CNN model."""
+        model_function = getattr(cnn_backbones, model_name)
+        return model_function(weights=pretrained)
+    
+
+    def _freeze_backbone(self) -> None:
+        """Freeze all parameters in the backbone CNN."""
+        print("Freezing CNN model")
+        for param in self.model.parameters():
+            param.requires_grad = False
 
 
     def forward(self, x: torch.Tensor, get_local: bool = False) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
@@ -104,7 +126,7 @@ class ImageEncoder(nn.Module):
         """
         # Resize input to expected dimensions
         x = nn.functional.interpolate(x, size=(299, 299), mode="bilinear", align_corners=True)
-        #x= x[:10,]   # 🛠️
+        x= x[:10,]   # 🛠️
         # Extract features through backbone layers
         x = self.model.conv1(x)   # (batch_size, 64, 150, 150)
         x = self.model.bn1(x)
@@ -154,40 +176,67 @@ class ImageEncoder(nn.Module):
             nn.init.uniform_(self.local_embedder.weight, -init_range, init_range)
 
 
-
-class PretrainedImageClassifier(nn.Module):
+class ImageClassifier(nn.Module):
+    """
+    Generic image classifier that can be used with different backbone architectures.
+    
+    Attributes:
+        img_encoder: Backbone CNN for feature extraction
+        feature_dim: Dimension of extracted features
+        classifier: Linear classifier head
+    """
     def __init__(
-        self,
-        image_encoder: nn.Module,
-        num_cls: int,
-        feature_dim: int,
-        freeze_encoder: bool = True,
-    ):
-        super(PretrainedImageClassifier, self).__init__()
-        self.img_encoder = image_encoder
-        self.classifier = nn.Linear(feature_dim, num_cls)
+            self, 
+            config, 
+            num_classes: Optional[int] = None, 
+            pretrained: str = 'DEFAULT',
+            freeze_encoder: bool = False    
+        ):
+        super().__init__()
+        
+        model_name = config.model.vision.model_name
+        model_function = getattr(cnn_backbones, model_name)
+        self.img_encoder, self.feature_dim, _ = model_function(pretrained=pretrained)
+        
+        # Determine number of target classes
+        if num_classes is None:
+            num_classes = config.model.vision.num_targets
+            
+        self.classifier = nn.Linear(self.feature_dim, num_classes)
+        
+        # Freeze encoder if specified
         if freeze_encoder:
             for param in self.img_encoder.parameters():
                 param.requires_grad = False
 
-    def forward(self, x):
-        x = self.img_encoder(x)
-        pred = self.classifier(x)
-        return pred
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass through the classifier."""
+        features = self.img_encoder(x)
+        predictions = self.classifier(features)
+        return predictions
 
 
-class ImageClassifier(nn.Module):
-    def __init__(self, cfg, image_encoder=None):
-        super(ImageClassifier, self).__init__()
-
-        model_function = getattr(cnn_backbones, cfg.model.vision.model_name)
-        self.img_encoder, self.feature_dim, _ = model_function(
-            pretrained=cfg.model.vision.pretrained
-        )
-
-        self.classifier = nn.Linear(self.feature_dim, cfg.model.vision.num_targets)
-
-    def forward(self, x):
-        x = self.img_encoder(x)
-        pred = self.classifier(x)
-        return pred
+class PretrainedImageClassifier(ImageClassifier):
+    """
+    Image classifier that uses a pre-trained GLoRIA image encoder.
+    
+    This classifier leverages the representations learned by the GLoRIA image encoder
+    for downstream classification tasks.
+    """
+    def __init__(
+        self,
+        image_encoder: ImageEncoder,
+        num_classes: int,
+        feature_dim: int,
+        freeze_encoder: bool = True,
+    ):
+        # Skip parent's __init__ and go to grandparent (nn.Module)
+        nn.Module.__init__(self)
+        
+        self.img_encoder = image_encoder
+        self.feature_dim = feature_dim
+        self.classifier = nn.Linear(feature_dim, num_classes)
+        
+        if freeze_encoder:
+            for param in self.img_encoder.parameters():
+                param.requires_grad = False

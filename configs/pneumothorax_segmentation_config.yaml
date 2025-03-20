@@ -29,7 +29,7 @@ model:
     vision:
         model_name: 'gloria_resnet50'
         freeze_cnn: false
-        pretrained: true
+        pretrained: "DEFAULT"
         num_targets: 1
 
 data:
