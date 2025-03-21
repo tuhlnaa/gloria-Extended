@@ -1,10 +1,17 @@
+"""
+GLoRIA: A Multimodal Global-Local Representation Learning Framework
+for Label-efficient Medical Image Recognition.
+
+This module provides utilities for loading pretrained GLoRIA models
+for various medical imaging tasks.
+"""
 
 import os
-import torch
 import copy
 import random
 import numpy as np
 import pandas as pd
+import torch
 import torch.nn as nn
 import segmentation_models_pytorch as smp
 
@@ -17,181 +24,195 @@ from . import constants
 from .models.vision_model import PretrainedImageClassifier
 
 
-np.random.seed(6)
-random.seed(6)
-
-
-_MODELS = {
+# Constants for model paths and dimensions
+MODEL_CHECKPOINTS = {
     "gloria_resnet50": "./pretrained/chexpert_resnet50.ckpt",
     "gloria_resnet18": "./pretrained/chexpert_resnet18.ckpt",
 }
 
-
-_SEGMENTATION_MODELS = {
+SEGMENTATION_MODEL_CHECKPOINTS = {
     "gloria_resnet50": "./pretrained/chexpert_resnet50.ckpt",
 }
 
+FEATURE_DIMENSIONS = {
+    "gloria_resnet50": 2048, 
+    "gloria_resnet18": 2048
+}
 
-_FEATURE_DIM = {"gloria_resnet50": 2048, "gloria_resnet18": 2048}
+# Set seeds for reproducibility
+torch.manual_seed(6)
+torch.cuda.manual_seed_all(6)
 
 
 def available_models() -> List[str]:
-    """Returns the names of available GLoRIA models"""
-    return list(_MODELS.keys())
+    """Returns the names of available GLoRIA models."""
+    return list(MODEL_CHECKPOINTS.keys())
 
 
 def available_segmentation_models() -> List[str]:
-    """Returns the names of available GLoRIA models"""
-    return list(_SEGMENTATION_MODELS.keys())
+    """Returns the names of available GLoRIA segmentation models."""
+    return list(SEGMENTATION_MODEL_CHECKPOINTS.keys())
 
 
-def load_gloria(
-    name: str = "gloria_resnet50",
-    device: Union[str, torch.device] = "cuda" if torch.cuda.is_available() else "cpu",
-):
-    """Load a GLoRIA model
+def load_gloria(name: str = "gloria_resnet50", device: Union[str, torch.device] = None) -> nn.Module:
+    """Load a GLoRIA model.
 
-    Parameters
-    ----------
-    name : str
-        A model name listed by `gloria.available_models()`, or the path to a model checkpoint containing the state_dict
-    device : Union[str, torch.device]
-        The device to put the loaded model
+    Args:
+        name: A model name listed by `available_models()`, or path to a checkpoint
+        device: The device to put the loaded model (defaults to CUDA if available, else CPU)
 
-    Returns
-    -------
-    gloria_model : torch.nn.Module
-        The GLoRIA model
+    Returns:
+        nn.Module: The loaded GLoRIA model
     """
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    ckpt_path = _get_checkpoint_path(name, MODEL_CHECKPOINTS)
+    ckpt = torch.load(ckpt_path, map_location=device)
+    
+    # Extract configuration and state dictionary
+    cfg = ckpt["hyper_parameters"]
+    state_dict = _normalize_state_dict(ckpt["state_dict"])
+    
+    # Build model and load weights
+    gloria_model = builder.build_gloria_model(cfg).to(device)
+    gloria_model.load_state_dict(state_dict)
+    
+    return gloria_model
 
-    # warnings
-    if name in _MODELS:
-        ckpt_path = _MODELS[name]
+
+def _get_checkpoint_path(name: str, available_models_dict: Dict[str, str]) -> str:
+    """Helper function to get checkpoint path from model name."""
+    if name in available_models_dict:
+        ckpt_path = available_models_dict[name]
     elif os.path.isfile(name):
         ckpt_path = name
     else:
+        model_type = "segmentation " if available_models_dict == SEGMENTATION_MODEL_CHECKPOINTS else ""
+        available = (available_segmentation_models() if available_models_dict == SEGMENTATION_MODEL_CHECKPOINTS 
+                    else available_models())
         raise RuntimeError(
-            f"Model {name} not found; available models = {available_models()}"
+            f"Model {name} not found; available {model_type}models = {available}"
         )
 
     if not os.path.exists(ckpt_path):
         raise RuntimeError(
             f"Model {name} not found.\n"
-            + "Make sure to download the pretrained weights from \n"
-            + "    https://stanfordmedicine.box.com/s/j5h7q99f3pfi7enc0dom73m4nsm6yzvh \n"
-            + " and copy it to the ./pretrained folder."
+            "Make sure to download the pretrained weights from \n"
+            "    https://stanfordmedicine.box.com/s/j5h7q99f3pfi7enc0dom73m4nsm6yzvh \n"
+            "and copy it to the ./pretrained folder."
         )
+    
+    return ckpt_path
 
-    ckpt = torch.load(ckpt_path)
-    cfg = ckpt["hyper_parameters"]
-    ckpt_dict = ckpt["state_dict"]
 
-    fixed_ckpt_dict = {}
-    for k, v in ckpt_dict.items():
-        new_key = k.split("gloria.")[-1]
-        fixed_ckpt_dict[new_key] = v
-    ckpt_dict = fixed_ckpt_dict
-
-    gloria_model = builder.build_gloria_model(cfg).to(device)
-    # Remove the problematic key
-    if "text_encoder.model.embeddings.position_ids" in ckpt_dict:
-        del ckpt_dict["text_encoder.model.embeddings.position_ids"]
-    # if "text_encoder.model.embeddings.position_ids" in ckpt_dict:
-    #     pos_ids = ckpt_dict["text_encoder.model.embeddings.position_ids"]
-    #     print(f"Type: {type(pos_ids)}")
-    #     print(f"Shape: {pos_ids.shape}")
-    #     print(f"Data type: {pos_ids.dtype}")
-    #     print(f"First few values: {pos_ids[:5, :5] if len(pos_ids.shape) > 1 else pos_ids[:5]}")
-    #     print(pos_ids)
-    gloria_model.load_state_dict(ckpt_dict)
-
-    return gloria_model
+def _normalize_state_dict(state_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    """Normalizes state dictionary keys for compatibility."""
+    normalized_dict = {}
+    for key, value in state_dict.items():
+        # Remove 'gloria.' prefix if present
+        new_key = key.split("gloria.")[-1]
+        normalized_dict[new_key] = value
+        
+    # Remove problematic keys that might cause issues during loading
+    if "text_encoder.model.embeddings.position_ids" in normalized_dict:
+        del normalized_dict["text_encoder.model.embeddings.position_ids"]
+        # if "text_encoder.model.embeddings.position_ids" in ckpt_dict:  # 🛠️
+        #     pos_ids = ckpt_dict["text_encoder.model.embeddings.position_ids"]
+        #     print(f"Type: {type(pos_ids)}")
+        #     print(f"Shape: {pos_ids.shape}")
+        #     print(f"Data type: {pos_ids.dtype}")
+        #     print(f"First few values: {pos_ids[:5, :5] if len(pos_ids.shape) > 1 else pos_ids[:5]}")
+        #     print(pos_ids)  
+    return normalized_dict
 
 
 def load_img_classification_model(
-    name: str = "gloria_resnet50",
-    device: Union[str, torch.device] = "cuda" if torch.cuda.is_available() else "cpu",
-    num_cls: int = 1,
-    freeze_encoder: bool = True,
-):
-    """Load a GLoRIA pretrained classification model
+        name: str = "gloria_resnet50",
+        device: Union[str, torch.device] = None,
+        num_classes: int = 1,
+        freeze_encoder: bool = True,
+    ) -> nn.Module:
+    """Load a GLoRIA pretrained classification model.
 
-    Parameters
-    ----------
-    name : str
-        A model name listed by `gloria.available_models()`, or the path to a model checkpoint containing the state_dict
-    device : Union[str, torch.device]
-        The device to put the loaded model
-    num_cls: int
-        Number of output classes
-    freeze_encoder: bool
-        Freeze the pretrained image encoder
+    Args:
+        name: A model name listed by `available_models()`, or path to a checkpoint
+        device: The device to put the loaded model (defaults to CUDA if available, else CPU)
+        num_classes: Number of output classes
+        freeze_encoder: Whether to freeze the pretrained image encoder
 
-    Returns
-    -------
-    img_model : torch.nn.Module
-        The GLoRIA pretrained image classification model
+    Returns:
+        nn.Module: The GLoRIA pretrained image classification model
     """
-
-    # load pretrained image encoder
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    # Load pretrained image encoder
     gloria_model = load_gloria(name, device)
     image_encoder = copy.deepcopy(gloria_model.img_encoder)
-    del gloria_model
-
-    # create image classifier
-    feature_dim = _FEATURE_DIM[name]
+    del gloria_model  # Free up memory
+    
+    # Create image classifier
+    feature_dim = FEATURE_DIMENSIONS[name]
     img_model = PretrainedImageClassifier(
-        image_encoder, num_cls, feature_dim, freeze_encoder
+        image_encoder=image_encoder, 
+        num_classes=num_classes, 
+        feature_dim=feature_dim, 
+        freeze_encoder=freeze_encoder
     )
-
+    
     return img_model
 
 
 def load_img_segmentation_model(
         name: str = "gloria_resnet50",
-        device: Union[str, torch.device] = "cuda" if torch.cuda.is_available() else "cpu",
-    ):
-    """Load a GLoRIA pretrained classification model
+        device: Union[str, torch.device] = None,
+    ) -> nn.Module:
+    """Load a GLoRIA pretrained segmentation model.
 
-    Parameters
-    ----------
-    name : str
-        A model name listed by `gloria.available_models()`, or the path to a model checkpoint containing the state_dict
-    device : Union[str, torch.device]
-        The device to put the loaded model
+    Args:
+        name: A model name listed by `available_segmentation_models()`, or path to a checkpoint
+        device: The device to put the loaded model (defaults to CUDA if available, else CPU)
 
-    Returns
-    -------
-    img_model : torch.nn.Module
-        The GLoRIA pretrained image classification model
+    Returns:
+        nn.Module: The GLoRIA pretrained image segmentation model
     """
-
-    # warnings
-    if name in _SEGMENTATION_MODELS:
-        ckpt_path = _SEGMENTATION_MODELS[name]
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    ckpt_path = _get_checkpoint_path(name, SEGMENTATION_MODEL_CHECKPOINTS)
+    
+    # Determine base model architecture from name
+    if name in SEGMENTATION_MODEL_CHECKPOINTS:
         base_model = name.split("_")[-1]
-    elif os.path.isfile(name):
-        ckpt_path = name
-        base_model = "resnet50"  # TODO
     else:
-        raise RuntimeError(
-            f"Model {name} not found; available models = {available_segmentation_models()}"
-        )
-
-    # load base model
-    seg_model = smp.Unet(base_model, encoder_weights=None, activation=None)
-
-    # update weight
-    ckpt = torch.load(ckpt_path)
-    ckpt_dict = {}
-    for k, v in ckpt["state_dict"].items():
-        if k.startswith("gloria.img_encoder.model"):
-            k = ".".join(k.split(".")[3:])
-            ckpt_dict[k] = v
-        ckpt_dict["fc.bias"] = None
-        ckpt_dict["fc.weight"] = None
-    seg_model.encoder.load_state_dict(ckpt_dict)
-
+        # Default to resnet50 for custom checkpoints
+        base_model = "resnet50"
+    
+    # Initialize segmentation model
+    seg_model = smp.Unet(
+        encoder_name=base_model, 
+        encoder_weights=None, 
+        activation=None
+    )
+    
+    # Load and prepare encoder weights
+    ckpt = torch.load(ckpt_path, map_location=device)
+    encoder_state_dict = {}
+    
+    for key, value in ckpt["state_dict"].items():
+        if key.startswith("gloria.img_encoder.model"):
+            # Extract encoder part from key
+            encoder_key = ".".join(key.split(".")[3:])
+            encoder_state_dict[encoder_key] = value
+    
+    # Remove FC layer weights as they're not needed for segmentation
+    encoder_state_dict["fc.bias"] = None
+    encoder_state_dict["fc.weight"] = None
+    
+    # Load weights into encoder
+    seg_model.encoder.load_state_dict(encoder_state_dict)
+    
     return seg_model.to(device)
 
 

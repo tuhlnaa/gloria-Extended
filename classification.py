@@ -20,6 +20,7 @@ gloria_model = gloria.load_gloria(device=device)
 #    'Cardiomegaly': ['cardiomegaly unchanged', 'cardiac silhouette enlarged' ...] 
 # ...
 # } 
+
 class_prompts = gloria.generate_chexpert_class_prompts()
 
 # process input images and class prompts 

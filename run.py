@@ -111,7 +111,7 @@ def run_experiment(config: Dict, args: argparse.Namespace) -> None:
     
     # Initialize model
     model = gloria.builder.build_lightning_model(config, datamodule)
-    
+    quit()
     # Set up callbacks, logger and trainer
     callbacks = setup_callbacks(config)
     logger = setup_logger(config)
