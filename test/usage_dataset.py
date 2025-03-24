@@ -11,6 +11,7 @@ PROJECT_ROOT = Path(__file__).parents[1]
 sys.path.append(str(PROJECT_ROOT))
 
 from data.dataset import get_chexpert_dataloader
+from utils.logging_utils import LoggingManager
 
 
 def set_seed(seed: int = 42) -> None:
@@ -32,6 +33,9 @@ def main():
     set_seed()
     config = OmegaConf.load("./test/usage_dataset_config.yaml")
     
+    # Print configuration using the logging utility
+    LoggingManager.print_config(config, "Configuration")
+
     # Create dataloader
     data_loader = get_chexpert_dataloader(config, split="train", view_type="Frontal")
 
@@ -60,6 +64,20 @@ if __name__ == "__main__":
     main()
 
 """
+╭──────────────────────────────────┬───────────────────────────────────────────────────╮
+│                        Parameter │ Value                                             │
+├──────────────────────────────────┼───────────────────────────────────────────────────┤
+│                     data.dataset │ 'chexpert'                                        │
+│                data.image.imsize │ 256                                               │
+│ transforms.random_crop.crop_size │ 224                                               │
+│                 train.batch_size │ 16                                                │
+│                train.num_workers │ 0                                                 │
+│                    path.data_dir │ './X-ray/CheXpert-v1.0-small'                     │
+│                   path.train_csv │ 'train.csv'                                       │
+│                   path.valid_csv │ 'valid.csv'                                       │
+│                    path.test_csv │ 'valid.csv'                                       │
+╰──────────────────────────────────┴───────────────────────────────────────────────────╯
+
 Batch 1:
   Image shape: torch.Size([16, 3, 224, 224])
   Labels shape: torch.Size([16, 5])

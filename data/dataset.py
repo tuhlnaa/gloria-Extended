@@ -194,8 +194,8 @@ class CheXpertImageDataset(ImageBaseDataset):
         self.df = pd.read_csv(csv_path)
         
         # Apply data fraction sampling if specified in config
-        if hasattr(config.data, 'frac') and config.data.frac != 1 and split == "train":
-            self.df = self.df.sample(frac=config.data.frac, random_state=42)
+        if hasattr(config.data, 'fraction') and config.data.fraction != 1 and split == "train":
+            self.df = self.df.sample(frac=config.data.fraction, random_state=42)
 
         # Filter by view type if specified
         if view_type != "All":
@@ -347,7 +347,7 @@ def get_chexpert_dataloader(
             - config.path.{split}_csv: Path to the specific split CSV file
             - config.train.batch_size: Batch size
             - config.train.num_workers: Number of workers
-            - config.data.frac: Optional fraction of data to use (for training)
+            - config.data.fraction: Optional fraction of data to use (for training)
         split: Dataset split ('train', 'valid', or 'test')
         view_type: Type of X-ray view ('Frontal', 'Lateral', or 'All')
         transform: Optional custom transformation pipeline; if None, uses transforms built from config

@@ -10,6 +10,7 @@ from rich import box, print
 from rich.panel import Panel
 from rich.pretty import Pretty
 from rich.table import Table
+from omegaconf import OmegaConf
 
 from .logging_base import BaseLogger
 
@@ -85,23 +86,25 @@ class LoggingManager:
 
 
     @staticmethod
-    def print_config(config, title: str = "Configuration"):
-        """Print configuration for logging purposes."""
-        logger = logging.getLogger(__name__)
-        
-        logger.info(f"=== {title} ===")
-        for key, value in vars(config).items():
-            logger.info(f"{key}: {value}")
-        logger.info("=" * (len(title) + 8))
-
-
-    @staticmethod
     def print_transforms(transform: Any, title: str = "Transform Steps") -> None:
         """Print transformation pipeline details."""
         transforms = transform.transforms if hasattr(transform, 'transforms') else [transform]
         pretty_transforms = Pretty(transforms)
         panel = Panel(pretty_transforms, title=title, subtitle="Detailed Transformations")
         print(panel, "\n")
+
+
+    # @staticmethod
+    # def print_config(config: Any, title: str = "Configuration") -> None:
+    #     """Print configuration details in a structured table."""
+    #     table = Table(title=title, box=box.ROUNDED)
+    #     table.add_column("Parameter", justify="right", style="cyan", no_wrap=True)
+    #     table.add_column("Value", style="magenta")
+        
+    #     for key, value in vars(config).items():
+    #         pretty_value = Pretty(value, indent_guides=False)
+    #         table.add_row(key, pretty_value)
+    #     print(table, "\n")
 
 
     @staticmethod
@@ -111,9 +114,28 @@ class LoggingManager:
         table.add_column("Parameter", justify="right", style="cyan", no_wrap=True)
         table.add_column("Value", style="magenta")
         
-        for key, value in vars(config).items():
-            pretty_value = Pretty(value, indent_guides=False)
-            table.add_row(key, pretty_value)
+        # Check if the config is an OmegaConf object
+        if OmegaConf.is_config(config):
+            # Convert OmegaConf to a dictionary
+            config_dict = OmegaConf.to_container(config, resolve=True)
+            
+            # Add rows recursively for nested config
+            def add_dict_to_table(d, prefix=""):
+                for key, value in d.items():
+                    param_name = f"{prefix}{key}"
+                    if isinstance(value, dict):
+                        add_dict_to_table(value, f"{param_name}.")
+                    else:
+                        pretty_value = Pretty(value, indent_guides=False)
+                        table.add_row(param_name, pretty_value)
+            
+            add_dict_to_table(config_dict)
+        else:
+            # Handle argparse or other config types
+            for key, value in vars(config).items():
+                pretty_value = Pretty(value, indent_guides=False)
+                table.add_row(key, pretty_value)
+        
         print(table, "\n")
 
 

@@ -5,60 +5,13 @@ import yaml
 import argparse
 
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any
 from omegaconf import OmegaConf
-from dataclasses import dataclass, field
 
 from utils.logging_utils import LoggingManager
 
-@dataclass
-class TrainingConfig:
-    """Enhanced training configuration with advanced features."""
-    # Dataset parameters
-    data_dir: str
-    num_workers: int = 0
 
-    # Training parameters
-    batch_size: int = 32
-    
-    epochs: int = 8
-    early_stopping_patience: int = 7
-    
-    # Optimization parameters
-    learning_rate: float = 1e-3
-    warmup_ratio: float = 0.1
-    weight_decay: float = 0.01
-    
-    # Model parameters
-    pretrained: bool = True
-    
-    # Advanced training features
-    amp: str = "no"
-    validation_freq: int = 100
-    log_freq: int = 100
-    save_freq: int = 100
-    resume: Optional[str] = None
-    
-    # Logging configuration
-    logger: str = "tensorboard"
-    neptune_project: Optional[str] = None
-    neptune_api_token: Optional[str] = None
-    experiment_name: Optional[str] = None
-    neptune_run_id: Optional[str] = None
-
-    output_dir: str = "output"
-
-    # Additional parameters can be added here for future expansion
-    
-    def __post_init__(self):
-        """Validate and convert paths to Path objects."""
-        self.data_dir = Path(self.data_dir)
-        self.output_dir = Path(self.output_dir)
-        if not self.data_dir.exists():
-            raise ValueError(f"Data directory {self.data_dir} does not exist")
-        
-
-def parse_args() -> TrainingConfig:
+def parse_args() -> Dict[str, Any]:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description='Train RSNA Trauma Detection model')
     parser.add_argument('--config', type=Path, help='YAML config file specifying default arguments')
@@ -80,15 +33,18 @@ def parse_args() -> TrainingConfig:
     group = parser.add_argument_group('Model parameters')
     group.add_argument('--batch_size', type=int, default=32, help='Input batch size for training')
     group.add_argument('--resume', type=str, help='Resume full model and optimizer state from checkpoint')
+    group.add_argument('--pretrained', type=bool, default=True, help='Use pretrained model')
 
     # Optimizer parameters
     group = parser.add_argument_group('Optimizer parameters')
-    group.add_argument('--weight-decay', type=float, default=2e-5, help='')
-
+    group.add_argument('--weight_decay', type=float, default=0.01, help='Weight decay factor')
+    
     # Learning rate schedule parameters
     group = parser.add_argument_group('Learning rate schedule parameters')
-    group.add_argument('--epochs', type=int, default=10, help='Number of epochs to train')
-    group.add_argument('--lr', type=float, default=1e-3, help="Learning rate for the optimizer")
+    group.add_argument('--epochs', type=int, default=8, help='Number of epochs to train')
+    group.add_argument('--learning_rate', type=float, default=1e-3, help="Learning rate for the optimizer")
+    group.add_argument('--warmup_ratio', type=float, default=0.1, help="Ratio of warmup steps")
+    group.add_argument('--patience', type=int, default=7, help='Early stopping patience')
 
     # Device & distributed
     group = parser.add_argument_group('Device parameters')
@@ -97,7 +53,7 @@ def parse_args() -> TrainingConfig:
 
     # Logging parameters
     group = parser.add_argument_group('Logging parameters')
-    group.add_argument('--logger', type=str, default='clearml', choices=['tensorboard', 'neptune', 'clearml'], help='Logger to use')
+    group.add_argument('--logger', type=str, default='tensorboard', choices=['tensorboard', 'neptune', 'clearml'], help='Logger to use')
     group.add_argument('--neptune_project', type=str, help='Neptune project name')
     group.add_argument('--neptune_api_token', type=str, help='Neptune API token')
     group.add_argument('--neptune_run_id', type=str, help='Neptune run ID to resume (e.g., "CLS-123")')
@@ -117,29 +73,40 @@ def parse_args() -> TrainingConfig:
     group.add_argument('--validation_freq', type=int, default=100, help='Frequency of validation (iterations)')
     group.add_argument('--log_freq', type=int, default=100, help='Frequency of logging metrics (iterations)')
     group.add_argument('--save_freq', type=int, default=100, help='Frequency of saving checkpoints (iterations)')
-    group.add_argument('--patience', type=int, default=7, help='Early stopping patience')
 
     args = parser.parse_args()
-
-    # Create config with priority: defaults < config file < command line args
-    config = TrainingConfig(data_dir=args.data_dir)
     
+    # Convert namespace to dictionary
+    config = vars(args)
+    
+    # If config file is provided, load it and update the config
     if args.config:
         yaml_config = load_yaml_config(args.config)
-        config = OmegaConf.merge(
-            OmegaConf.structured(config),
-            OmegaConf.create(yaml_config)
-        )
+        # Start with yaml config and override with command line args that are not None
+        merged_config = {**yaml_config}
+        for key, value in config.items():
+            if value is not None and key != 'config':
+                merged_config[key] = value
+        config = merged_config
     
-    # Update with command line arguments
-    for key, value in vars(args).items():
-        if value is not None and key != 'config':
-            setattr(config, key, value)
+    # Validate and convert paths
+    validate_paths(config)
     
     # Print configuration using the logging utility
-    LoggingManager.print_config(config, "Command Line Arguments")
+    LoggingManager.print_config(config, "Configuration")
 
     return config
+
+
+def validate_paths(config: Dict[str, Any]) -> None:
+    """Validate and ensure that required paths exist."""
+    if 'data_dir' in config and config['data_dir']:
+        if not Path(config['data_dir']).exists():
+            raise ValueError(f"Data directory {config['data_dir']} does not exist")
+    
+    # Ensure output_dir is a Path object
+    if 'output_dir' in config and config['output_dir']:
+        config['output_dir'] = Path(config['output_dir'])
 
 
 def load_yaml_config(config_path: str) -> dict:
@@ -159,4 +126,3 @@ def str_or_bool(value):
             return str(value)
     # If it's not a boolean string, return the string value itself
     return value
-

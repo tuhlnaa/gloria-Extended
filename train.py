@@ -17,8 +17,8 @@ from flash.core.optimizers import LinearWarmupCosineAnnealingLR
 
 from configs.config import TrainingConfig, parse_args
 from data.dataset import get_chexpert_dataloader, get_motion_segmentation_dataloader
-from models.losses import CombinedLoss
-from engine.trainer import Trainer
+# from models.losses import CombinedLoss
+# from engine.trainer import Trainer
 from utils.logging_utils import LoggingManager
 
 # from engine.trainer import MultiHeadTrainer
@@ -54,9 +54,9 @@ def create_criterion() -> Dict[str, nn.Module]:
         # Custom Dice Loss
         criterion = smp.losses.DiceLoss(mode='multiclass')
 
-    elif loss_type == "combined":
-        # Combined CE and Dice Loss (weighted)
-        criterion = CombinedLoss(dice_weight=0.5, ce_weight=0.5)
+    # elif loss_type == "combined":
+    #     # Combined CE and Dice Loss (weighted)
+    #     criterion = CombinedLoss(dice_weight=0.5, ce_weight=0.5)
         
     else:
         ValueError("XXXXXXXXX")
@@ -121,7 +121,8 @@ def run_training_pipeline(config: TrainingConfig) -> dict:
     """Enhanced training function with advanced features."""
     # Set up training components
     model, dataloaders, logger = setup_training(config)
-
+    quit()
+    
     # Calculate training steps with validation frequency
     num_training_steps_per_epoch = len(dataloaders['train'])
     total_steps = num_training_steps_per_epoch * config.epochs
@@ -222,12 +223,12 @@ def main() -> None:
     config = OmegaConf.load(args.config)
     config = parse_args()
     
-    # # Create output directory
-    # output_path = Path(config.output_dir)
-    # output_path.mkdir(parents=True, exist_ok=True)
+    # Create output directory
+    output_path = Path(config.output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
     
-    # # Save full config
-    # OmegaConf.save(config=OmegaConf.create(config), f=output_path / 'config.yaml')
+    # Save full config
+    OmegaConf.save(config=OmegaConf.create(config), f=output_path / 'config.yaml')
 
     # Train model
     run_training_pipeline(args, config)
