@@ -5,7 +5,7 @@ import numpy as np
 
 from pytorch_lightning.core import LightningModule
 from sklearn.metrics import average_precision_score, roc_auc_score
-from typing import Dict, List, Tuple, Union, Optional
+from typing import Dict, List, Tuple
 
 from .. import builder
 from .. import gloria

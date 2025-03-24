@@ -1,0 +1,27 @@
+
+output_dir: "./output"
+device: "cuda:1"
+
+trainer:
+  lr: 1e-4
+  gradient_clip_val: 0.25
+
+model: 
+  vision:
+    model_name: 'gloria_resnet50'
+    pretrained: "DEFAULT"
+    freeze_cnn: true
+    num_targets: 5
+
+train: 
+  loss_fn: 
+    type: BCE
+    class_weights: null
+  optimizer: 
+    name: 'Adam'
+    weight_decay: 1e-6
+  scheduler: 
+    name: 'plateau'
+    monitor: 'val_loss'
+    interval: 'epoch'
+    frequency: 3
