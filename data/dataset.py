@@ -103,7 +103,7 @@ class ImageBaseDataset(Dataset):
             raise FileNotFoundError(f"Image not found or couldn't be read: {img_path}")
             
         # Resize image to configured dimensions
-        img = self._resize_img(img, self.config.data.image.imsize)
+        img = self._resize_img(img, self.config.model.image_size)
         pil_img = Image.fromarray(img).convert("RGB")
         
         if self.transform is not None:
@@ -181,7 +181,7 @@ class CheXpertImageDataset(ImageBaseDataset):
         self.chexpert_config = CheXpertConfig()
         
         #if not self.chexpert_config.DATA_DIR.exists():
-        if not Path(config.path.data_dir).exists():
+        if not Path(config.data_dir).exists():
             raise RuntimeError(
                 "CheXpert data path not found.\n"
                 "Make sure to download data from:\n"
@@ -194,8 +194,8 @@ class CheXpertImageDataset(ImageBaseDataset):
         self.df = pd.read_csv(csv_path)
         
         # Apply data fraction sampling if specified in config
-        if hasattr(config.data, 'fraction') and config.data.fraction != 1 and split == "train":
-            self.df = self.df.sample(frac=config.data.fraction, random_state=42)
+        if hasattr(config.dataset, 'fraction') and config.dataset.fraction != 1 and split == "train":
+            self.df = self.df.sample(frac=config.dataset.fraction, random_state=42)
 
         # Filter by view type if specified
         if view_type != "All":
@@ -211,11 +211,11 @@ class CheXpertImageDataset(ImageBaseDataset):
     def _get_csv_path(self, config: object,  split: str) -> Path:
         """Get the CSV file path for the given split."""
         if split == "train":
-            return Path(config.path.data_dir) / config.path.train_csv # self.chexpert_config.TRAIN_CSV
+            return Path(config.data_dir) / config.train_csv # self.chexpert_config.TRAIN_CSV
         elif split == "valid":
-            return Path(config.path.data_dir) / config.path.valid_csv # self.chexpert_config.VALID_CSV
+            return Path(config.data_dir) / config.valid_csv # self.chexpert_config.VALID_CSV
         else:  # test
-            return Path(config.path.data_dir) / config.path.test_csv  # self.chexpert_config.TEST_CSV
+            return Path(config.data_dir) / config.test_csv  # self.chexpert_config.TEST_CSV
 
 
     def _process_image_paths(self, config) -> None:
@@ -228,7 +228,7 @@ class CheXpertImageDataset(ImageBaseDataset):
         def convert_to_absolute_path(relative_path: str) -> str:
             path_components = relative_path.split("/")[1:]
             relative_subpath = Path(*path_components)
-            absolute_path = Path(config.path.data_dir) / relative_subpath
+            absolute_path = Path(config.data_dir) / relative_subpath
             return str(absolute_path)
             
         # Apply the conversion function to all paths in the dataframe
@@ -343,11 +343,11 @@ def get_chexpert_dataloader(
     Args:
         config: Configuration object containing dataset parameters
             Expected structure:
-            - config.path.data_dir: Base directory containing CheXpert data
-            - config.path.{split}_csv: Path to the specific split CSV file
-            - config.train.batch_size: Batch size
-            - config.train.num_workers: Number of workers
-            - config.data.fraction: Optional fraction of data to use (for training)
+            - config.data_dir: Base directory containing CheXpert data
+            - config.{split}_csv: Path to the specific split CSV file
+            - config.model.batch_size: Batch size
+            - config.dataset.num_workers: Number of workers
+            - config.dataset.fraction: Optional fraction of data to use (for training)
         split: Dataset split ('train', 'valid', or 'test')
         view_type: Type of X-ray view ('Frontal', 'Lateral', or 'All')
         transform: Optional custom transformation pipeline; if None, uses transforms built from config
@@ -373,11 +373,11 @@ def get_chexpert_dataloader(
     # Create dataloader with parameters from config
     dataloader = DataLoader(
         dataset,
-        batch_size=config.train.batch_size,
+        batch_size=config.model.batch_size,
         shuffle=(split == "train"),
-        num_workers=config.train.num_workers,
-        pin_memory=getattr(config.train, "pin_memory", False),
-        drop_last=getattr(config.train, "drop_last", False) if split == "train" else True
+        num_workers=config.dataset.num_workers,
+        pin_memory=getattr(config.model, "pin_memory", False),
+        drop_last=getattr(config.model, "drop_last", False) if split == "train" else True
     )
     
     return dataloader

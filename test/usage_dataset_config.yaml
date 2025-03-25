@@ -1,8 +1,18 @@
-data:
-  dataset: chexpert
-  # fraction: 1.0  # Optional fraction of data to use (for training)
-  image:
-    imsize: 256
+
+# Required parameters (must be provided via command line or config file)
+data_dir: "D:\\Kai\\DATA_Set_2\\X-ray\\CheXpert-v1.0-small"    # Path to the dataset directory
+train_csv: "train.csv"  # Path to the specific split CSV file
+valid_csv: "valid.csv"
+test_csv: "valid.csv"   # Using validation set as test set (test set labels hidden)
+
+model:
+  image_size: 256
+  batch_size: 16  # Batch size
+
+dataset:
+  dataset_name: chexpert
+  fraction: 1.0
+  num_workers: 0  # Input batch size for training
 
 # Uses transforms built from config
 transforms:  
@@ -13,12 +23,4 @@ transforms:
   # color_jitter: null
   # norm: norm
 
-train:
-  batch_size: 16  # Batch size
-  num_workers: 0  # Number of workers
 
-path:
-  data_dir: "D:\\Kai\\DATA_Set_2\\X-ray\\CheXpert-v1.0-small"
-  train_csv: "train.csv"  # Path to the specific split CSV file
-  valid_csv: "valid.csv"
-  test_csv: "valid.csv"   # Using validation set as test set (test set labels hidden)
