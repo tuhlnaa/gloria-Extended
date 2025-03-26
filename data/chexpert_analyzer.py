@@ -15,6 +15,15 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional
 
+# Based on original CheXpert paper
+CHEXPERT_UNCERTAIN_MAPPINGS = {
+    "Atelectasis": 1,
+    "Cardiomegaly": 0,
+    "Consolidation": 0,
+    "Edema": 1,
+    "Pleural Effusion": 1,
+}
+
 class CheXpertAnalyzer:
     """Class for analyzing and visualizing CheXpert dataset."""
 
@@ -60,14 +69,15 @@ class CheXpertAnalyzer:
 
     def visualize_counts(self, count_df: pd.DataFrame, output_path: str) -> None:
         """Create a grouped bar plot visualization of the counts."""
-        #plt.figure(figsize=(12, 8))
+        plt.figure(figsize=(8, 6))
         
         # Define color palette (Data volume ranking)
-        palette_name = 'coolwarm'
-        pal = sns.color_palette(palette_name, len(count_df['Tag']))
-        print(count_df['Tag'])
-        rank = count_df['Count'].argsort().argsort()
-        palette_list = list(np.array(pal)[rank])
+        # palette_name = 'coolwarm'
+        # pal = sns.color_palette(palette_name, len(count_df['Tag']))
+        # print(count_df)
+        # print(count_df['Tag'])
+        # rank = count_df['Count'].argsort().argsort()
+        # palette_list = list(np.array(pal)[rank])
 
         # Create the grouped bar plot
         plt.style.use('cyberpunk')
@@ -76,9 +86,9 @@ class CheXpertAnalyzer:
             y='Count', 
             hue='Category',
             data=count_df,
-            palette=palette_list,
-            dodge=False
-            #palette={'Sick': 'coral', 'Uncertain': 'lightblue'}, 
+            # palette=palette_list,
+            # dodge=False, 
+            width=0.7
         )
         
         # Set title and labels
@@ -91,11 +101,11 @@ class CheXpertAnalyzer:
         
         # Add count labels on the bars
         for container in ax.containers:
-            ax.bar_label(container, fmt='%d', fontsize=16)
+            ax.bar_label(container, fmt='%d', fontsize=13)
             
         # Adjust layout and save
         plt.tight_layout()
-        plt.savefig(output_path, dpi=200)
+        plt.savefig(output_path, dpi=150)
         plt.close()
 
 
@@ -134,7 +144,8 @@ if __name__ == "__main__":
 """
 python chexpert_analyzer.py --csv_path path/to/chexpert.csv --tags "No Finding" "Pneumonia" "Edema" --output_path path/to/output.png
 
-python data\chexpert_analyzer.py --csv_path D:\Kai\DATA_Set_2\X-ray\CheXpert-v1.0-small\valid.csv --tags "Atelectasis" "Cardiomegaly" "Consolidation" "Edema" "Pleural Effusion" --output_path output/output.png
+python data\chexpert_analyzer.py --csv_path D:\Kai\DATA_Set_2\X-ray\CheXpert-v1.0-small\valid.csv --tags "Atelectasis" "Cardiomegaly" "Consolidation" "Edema" "Pleural Effusion" --output_path output/chexpert_val.png
 
+python data\chexpert_analyzer.py --csv_path D:\Kai\DATA_Set_2\X-ray\CheXpert-v1.0-small\train.csv --tags "Atelectasis" "Cardiomegaly" "Consolidation" "Edema" "Pleural Effusion" --output_path output/chexpert_train.png
 
 """
