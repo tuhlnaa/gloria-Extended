@@ -7,18 +7,21 @@ import numpy as np
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import segmentation_models_pytorch as smp
-from torchmetrics.segmentation import DiceScore
+
 
 from pathlib import Path
 from typing import Dict, Tuple
 from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
+from torchmetrics.segmentation import DiceScore
 from flash.core.optimizers import LinearWarmupCosineAnnealingLR
 
-from configs.config import TrainingConfig, parse_args
-from data.dataset import get_chexpert_dataloader, get_motion_segmentation_dataloader
+
+from configs.config import parse_args, save_config
+from data.dataset import get_chexpert_dataloader#, get_motion_segmentation_dataloader
 # from models.losses import CombinedLoss
 # from engine.trainer import Trainer
+from gloria.models import pytorch
 from utils.logging_utils import LoggingManager
 
 # from engine.trainer import MultiHeadTrainer
@@ -65,62 +68,75 @@ def create_criterion() -> Dict[str, nn.Module]:
     return criterion
 
 
-def setup_training(config, args) -> Tuple[nn.Module, torch.device, Dict[str, DataLoader]]:
+def setup_training(config: OmegaConf) -> Tuple[nn.Module, torch.device, Dict[str, DataLoader]]:
 
     # Initialize logger with appropriate configuration
     neptune_config = None
     clearml_config = None
-    if args.logger == 'neptune':
-        if not args.neptune_project or not args.neptune_api_token:
+    if config.logging.logger == 'neptune':
+        if not config.logging.neptune.project or not config.logging.neptune.api_token:
             raise ValueError("Neptune project and API token required when using Neptune logger")
 
         neptune_config = {
-            'project': args.neptune_project,
-            'api_token': args.neptune_api_token,
-            'experiment_name': args.experiment_name,
-            'run_id': args.neptune_run_id
+            'project': config.logging.neptune.project,
+            'api_token': config.logging.neptune.api_token,
+            'experiment_name': config.logging.experiment_name,
+            'run_id': config.logging.neptune.run_id
         }
 
-    elif args.logger == 'clearml':
+    elif config.logging.logger == 'clearml':
         clearml_config = {
-            'project': args.clearml_project,
-            'task_name': args.experiment_name,
-            'task_type': args.clearml_task_type,
-            'reuse_last_task_id': args.clearml_task_id,
-            "tags": args.clearml_tags,
+            'project': config.logging.clearml.project,
+            'task_name': config.logging.experiment_name,
+            'task_type': config.logging.clearml.task_type,
+            'reuse_last_task_id': config.logging.clearml.task_id,
+            "tags": config.logging.clearml.tags,
         }
 
     logger = LoggingManager(
-        output_dir=args.output_dir,
-        logger_type=args.logger,
+        output_dir=config.output_dir,
+        logger_type=config.logging.logger,
         neptune_config=neptune_config,
         clearml_config=clearml_config
     )
 
     # Set random seed for reproducibility
-    set_seed(args.seed)
+    set_seed(config.misc.seed)
 
     # Setup data loaders
     train_loader = get_chexpert_dataloader(config, split="train", view_type="Frontal")
     val_loader = get_chexpert_dataloader(config, split="valid", view_type="Frontal")
 
-    # Initialize model with support for resuming
-    model = smp.PSPNet(
-        encoder_name="resnet34",        # Choose encoder
-        encoder_weights="imagenet",     # Use pre-trained weights
-        in_channels=3,                  # RGB input
-        classes=args.num_classes,     # Number of classes (background + foreground)
-    ).to(args.device)
+    # Initialize model
+    model_class = pytorch.PYTORCH_MODULES[config.phase.lower()]
+    model = model_class(config)
 
-    logger.log_model_summary(model)
+    #logger.log_model_summary(model)
     
     return model, {'train': train_loader, 'val': val_loader}, logger
 
 
-def run_training_pipeline(config: TrainingConfig) -> dict:
+def run_training_pipeline(config: OmegaConf) -> dict:
     """Enhanced training function with advanced features."""
     # Set up training components
     model, dataloaders, logger = setup_training(config)
+
+    for epoch in range(0, config.lr_scheduler.epochs):
+        train_metrics = model.train_epoch(dataloaders['train'], epoch)
+
+        #train_metrics = {f"train_{k}": v for k, v in train_metrics.item()}
+        train_metrics.update({"learning_rate": model.optimizer.param_groups[0]['lr']})
+
+        if epoch % 3 == 0: 
+            model.scheduler["scheduler"].step(train_metrics["train_loss"])
+
+        # Log metrics
+        logger.log_metrics(train_metrics, epoch)
+
+        val_metrics = model.validate(dataloaders['val'])
+        #val_metrics.update({f"val_{k}": v for k, v in val_metrics.items()})
+        logger.log_metrics(val_metrics, epoch)
+
     quit()
     
     # Calculate training steps with validation frequency
@@ -172,7 +188,7 @@ def run_training_pipeline(config: TrainingConfig) -> dict:
     if config.resume:
         trainer.resume_from_checkpoint(config.resume)
         # Log the resumed checkpoint as an artifact
-        logger.log_artifact(config.resume, "checkpoints/resumed_from")
+        # logger.log_artifact(config.resume, "checkpoints/resumed_from")
 
     # Print training configuration
     LoggingManager.print_training_config(
@@ -194,47 +210,18 @@ def run_training_pipeline(config: TrainingConfig) -> dict:
     logger.close()  # Cleanup
 
 
-def parse_arguments() -> argparse.Namespace:
-    """Parse command line arguments for the training script."""
-    parser = argparse.ArgumentParser(description="GLoRIA training and evaluation script")
-    
-    # Basic configuration
-    parser.add_argument("--config", type=str, required=True, help="Path to the configuration file")
-    parser.add_argument("--train", action="store_true", help="Run model training")
-    parser.add_argument("--test", action="store_true", help="Run model evaluation")
-    parser.add_argument("--ckpt_path", type=str, default=None, help="Path to the model checkpoint")
-    
-    # Experiment settings
-    parser.add_argument("--random_seed", type=int, default=23, help="Random seed for reproducibility",)
-    parser.add_argument("--train_pct", type=float, default=1.0, help="Percentage of training data to use")
-    parser.add_argument("--splits", type=int, default=1, help="Number of training splits to use")
-    
-    # Device configuration
-    parser.add_argument("--device", type=str, default="cuda:0", help="Device to use for training")
-    
-    # Add PyTorch Lightning Trainer arguments
-    parser = Trainer.add_argparse_args(parser)
-    
-    return parser.parse_args()
-
-
-def main() -> None:
-    args = parse_arguments()
-    config = OmegaConf.load(args.config)
+def main():
+    """Main function with enhanced features."""
     config = parse_args()
-    
+
     # Create output directory
     output_path = Path(config.output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
-    
+
     # Save full config
-    OmegaConf.save(config=OmegaConf.create(config), f=output_path / 'config.yaml')
+    save_config(config, path=output_path / 'config.yaml')
 
-    # Train model
-    run_training_pipeline(args, config)
-
-    # Cleanup logging
-    pass
+    run_training_pipeline(config)
 
 
 if __name__ == '__main__':

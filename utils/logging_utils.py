@@ -94,19 +94,6 @@ class LoggingManager:
         print(panel, "\n")
 
 
-    # @staticmethod
-    # def print_config(config: Any, title: str = "Configuration") -> None:
-    #     """Print configuration details in a structured table."""
-    #     table = Table(title=title, box=box.ROUNDED)
-    #     table.add_column("Parameter", justify="right", style="cyan", no_wrap=True)
-    #     table.add_column("Value", style="magenta")
-        
-    #     for key, value in vars(config).items():
-    #         pretty_value = Pretty(value, indent_guides=False)
-    #         table.add_row(key, pretty_value)
-    #     print(table, "\n")
-
-
     @staticmethod
     def print_config(config: Any, title: str = "Configuration") -> None:
         """Print configuration details in a structured table."""
@@ -440,14 +427,26 @@ class ClearMLLogger(BaseLogger):
                 
                 # Organize metrics into subgroups
                 if metric_name == 'loss':
-                    title = phase
-                    series = "loss"
+                    title = metric_name
+                    series = phase
                 elif metric_name == 'mean_accuracy':
                     title = phase
                     series = "mean_accuracy"
-                elif metric_name.endswith('_accuracy'):
-                    title = f"{phase}/accuracies"
+                elif "_accuracy" in metric_name:
+                    title = f"{phase}/accuracy"
                     series = metric_name.replace('_accuracy', '')
+                elif metric_name == 'mean_auroc':
+                    title = metric_name
+                    series = phase  
+                elif metric_name == 'mean_auprc':
+                    title = metric_name
+                    series = phase  
+                elif "auroc_class" in metric_name:
+                    title = f"{phase}/auroc_class"
+                    series = metric_name.replace('auroc_', '')
+                elif "auprc_class" in metric_name:
+                    title = f"{phase}/auprc_class"
+                    series = metric_name.replace('auprc_', '')
                 else:
                     title = phase
                     series = metric_name

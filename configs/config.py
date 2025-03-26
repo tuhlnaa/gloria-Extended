@@ -14,7 +14,7 @@ sys.path.append(str(PROJECT_ROOT))
 
 from utils.logging_utils import LoggingManager
 
-def parse_args() -> Dict[str, Any]:
+def parse_args() -> OmegaConf:
     """Parse command line arguments and merge with config file."""
     parser = argparse.ArgumentParser(description='Train RSNA Trauma Detection model')
     

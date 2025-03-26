@@ -2,15 +2,11 @@ import os
 import json
 import torch
 import numpy as np
-from typing import Dict, List, Tuple, Optional, Union
+from typing import Dict, List, Tuple
 from sklearn.metrics import average_precision_score, roc_auc_score
-from torch.optim import Optimizer
-from torch.optim.lr_scheduler import _LRScheduler
 
 from gloria import builder, gloria
 
-# from .. import builder
-# from .. import gloria
 
 class ClassificationModel:
     """
@@ -28,8 +24,8 @@ class ClassificationModel:
             cfg: Configuration object containing model parameters
         """
         self.config = config
-        self.lr = config.trainer.lr
-        self.device = config.device # torch.device()
+        self.lr = config.lr_scheduler.learning_rate
+        self.device = config.device.device
         self.datamodule = None
         
         # Initialize the appropriate model based on configuration
@@ -43,6 +39,7 @@ class ClassificationModel:
         # Initialize optimizer and scheduler
         self.optimizer = None
         self.scheduler = None
+        self.setup_optimization()
 
 
     def _initialize_model(self) -> torch.nn.Module:
@@ -52,15 +49,17 @@ class ClassificationModel:
         Returns:
             torch.nn.Module: Initialized model
         """
-        if self.config.model.vision.model_name in gloria.available_models():
-            return gloria.load_img_classification_model(
-                self.config.model.vision.model_name,
-                num_classes=self.config.model.vision.num_targets,
-                freeze_encoder=self.config.model.vision.freeze_cnn,
-                device=self.device
-            )
-        else:
-            return builder.build_image_model(self.config)
+        return builder.build_image_model(self.config)
+        # 🛠️
+        # if self.config.model.vision.model_name in gloria.available_models():
+        #     return gloria.load_img_classification_model(
+        #         self.config.model.vision.model_name,
+        #         num_classes=self.config.model.vision.num_targets,
+        #         freeze_encoder=self.config.model.vision.freeze_cnn,
+        #         device=self.device
+        #     )
+        # else:
+        #     return builder.build_image_model(self.config)
 
 
     def setup_optimization(self, datamodule=None) -> None:
@@ -72,7 +71,7 @@ class ClassificationModel:
         """
         self.datamodule = datamodule
         self.optimizer = builder.build_optimizer(self.config, self.lr, self.model)
-        self.scheduler = builder.build_scheduler(self.config, self.optimizer, self.datamodule)
+        self.scheduler = builder.build_scheduler(self.config, self.optimizer, self.datamodule) # 🛠️
 
 
     def train_epoch(self, train_loader, epoch: int) -> Dict[str, float]:
@@ -100,7 +99,7 @@ class ClassificationModel:
             loss.backward()
 
             # Gradient clipping could be added here if needed:
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.config.gradient_clip_val)
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.config.optimizer.clip_grad)
 
             self.optimizer.step()
             
@@ -114,10 +113,11 @@ class ClassificationModel:
                 
         # Calculate epoch metrics
         metrics = self._compute_epoch_metrics(all_logits, all_labels, epoch_loss, len(train_loader), "train")
-        
-        # Step LR scheduler if it's epoch-based
-        if self.scheduler is not None and not self.config.scheduler.step_every_batch:
-            self.scheduler.step()
+
+        # 🛠️
+        # # Step LR scheduler if it's epoch-based
+        # if self.scheduler is not None:
+        #     self.scheduler.step()
             
         return metrics
 
@@ -227,10 +227,10 @@ class ClassificationModel:
         # Create metrics dictionary
         metrics = {
             f"{split}_loss": mean_loss,
-            f"{split}_auroc": mean_auroc,
-            f"{split}_auprc": mean_auprc,
-            f"{split}_auroc_per_class": auroc_list,
-            f"{split}_auprc_per_class": auprc_list
+            f"{split}_mean_auroc": mean_auroc,
+            f"{split}_mean_auprc": mean_auprc,
+            **{f"{split}_auroc_class_{i}": auroc for i, auroc in enumerate(auroc_list)},
+            **{f"{split}_auprc_class_{i}": auprc for i, auprc in enumerate(auprc_list)}
         }
         
         # Print metrics

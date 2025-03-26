@@ -18,17 +18,17 @@ class ClassificationModel(LightningModule):
     Handles training, validation, and testing with appropriate metrics tracking.
     """
 
-    def __init__(self, cfg):
+    def __init__(self, config):
         super().__init__()
-        self.cfg = cfg
-        self.lr = cfg.lightning.trainer.lr
+        self.cfg = config
+        self.lr = config.lightning.trainer.lr
         self.dm = None
         
         # Initialize the appropriate model based on configuration
         self.model = self._initialize_model()
         
         # Initialize loss function
-        self.loss = builder.build_loss(cfg)
+        self.loss = builder.build_loss(config)
         
 
     def _initialize_model(self):

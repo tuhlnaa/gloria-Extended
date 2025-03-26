@@ -87,8 +87,8 @@ def build_optimizer(config: Dict[str, Any], lr: float, model: nn.Module) -> Opti
     # Only include parameters that require gradients
     trainable_params = [p for p in model.parameters() if p.requires_grad]
     
-    optimizer_name = config.train.optimizer.name
-    weight_decay = config.train.optimizer.weight_decay
+    optimizer_name = config.optimizer.name
+    weight_decay = config.optimizer.weight_decay
     
     optimizers = {
         "SGD": lambda: torch.optim.SGD(
@@ -132,7 +132,7 @@ def build_scheduler(
     Returns:
         Dictionary with scheduler configuration
     """
-    scheduler_name = config.train.scheduler.name
+    scheduler_name = config.lr_scheduler.name
     
     if scheduler_name == "warmup":
         def warmup_lr_lambda(epoch):
@@ -154,20 +154,21 @@ def build_scheduler(
     
     # Calculate scheduler frequency if validation check interval is set
     frequency = 1  # Default frequency
-    interval = config.train.scheduler.interval  # Default interval
-    
-    if hasattr(config.lightning.trainer, 'val_check_interval') and config.lightning.trainer.val_check_interval is not None:
-        interval = "step"
-        if dm and hasattr(dm, 'train_dataloader'):
-            num_iter = len(dm.train_dataloader().dataset)
-            if isinstance(config.lightning.trainer.val_check_interval, float):
-                frequency = int(num_iter * config.lightning.trainer.val_check_interval)
-            else:
-                frequency = config.lightning.trainer.val_check_interval
+    interval = config.lr_scheduler.interval  # Default interval
+
+    # 🛠️
+    # if hasattr(config.lr_scheduler.trainer, 'val_check_interval') and config.lr_scheduler.val_check_interval is not None:
+    #     interval = "step"
+    #     if dm and hasattr(dm, 'train_dataloader'):
+    #         num_iter = len(dm.train_dataloader().dataset)
+    #         if isinstance(config.lr_scheduler.val_check_interval, float):
+    #             frequency = int(num_iter * config.lr_scheduler.val_check_interval)
+    #         else:
+    #             frequency = config.lr_scheduler.val_check_interval
     
     return {
         "scheduler": scheduler,
-        "monitor": config.train.scheduler.monitor,
+        "monitor": config.lr_scheduler.monitor,
         "interval": interval,
         "frequency": frequency,
     }
@@ -175,13 +176,13 @@ def build_scheduler(
 
 def build_loss(config: Dict[str, Any]) -> nn.Module:
     """Build a loss function based on configuration."""
-    loss_type = config.train.loss_fn.type
+    loss_type = config.criterion.name
     
     loss_functions = {
         "DiceLoss": lambda: loss.segmentation_loss.DiceLoss(),
         "FocalLoss": lambda: loss.segmentation_loss.FocalLoss(),
         "MixedLoss": lambda: loss.segmentation_loss.MixedLoss(
-            alpha=config.train.loss_fn.alpha
+            alpha=config.criterion.alpha
         ),
         "BCE": lambda: _create_bce_loss(config),
     }
@@ -194,8 +195,8 @@ def build_loss(config: Dict[str, Any]) -> nn.Module:
 
 def _create_bce_loss(config: Dict[str, Any]) -> nn.BCEWithLogitsLoss:
     """Helper function to create BCE loss with optional class weights."""
-    if hasattr(config.train.loss_fn, 'class_weights') and config.train.loss_fn.class_weights is not None:
-        weight = torch.Tensor(config.train.loss_fn.class_weights)
+    if hasattr(config.criterion, 'class_weights') and config.criterion.class_weights is not None:
+        weight = torch.Tensor(config.criterion.class_weights)
         return nn.BCEWithLogitsLoss(pos_weight=weight)
     else:
         return nn.BCEWithLogitsLoss()
