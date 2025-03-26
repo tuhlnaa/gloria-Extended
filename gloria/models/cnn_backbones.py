@@ -34,9 +34,6 @@ def get_backbone(name: str, weights: WeightsType = 'DEFAULT') -> ModelReturnType
         
     Returns:
         tuple: (model, feature_dimensions, projection_dimensions)
-        
-    Raises:
-        ValueError: If the model name is not registered
     """
     if name not in MODEL_REGISTRY:
         raise ValueError(
@@ -52,6 +49,10 @@ def _create_feature_extractor(
     ) -> ModelReturnType:
     """Create a feature extractor from a torchvision model.
     
+    This function takes a torchvision model builder, creates the model, and replaces
+    its classification layer with an Identity layer to extract features instead of
+    producing classification outputs.
+    
     Args:
         model_builder: Function that builds the base model
         weights: Weight initialization strategy ('DEFAULT' for pretrained)
@@ -59,6 +60,10 @@ def _create_feature_extractor(
     
     Returns:
         tuple: (model, feature_dimensions, projection_dimensions)
+            - model: Modified torchvision model with classifier replaced by Identity layer
+            - feature_dimensions: Number of features produced by the backbone before classification
+            - projection_dimensions: Optional dimension (1024) used for ResNet models in the GLoRIA
+              framework, or None for other architectures
     """
     model = model_builder(weights=weights)
     classifier = getattr(model, classifier_attr)
@@ -76,7 +81,9 @@ def _create_feature_extractor(
 class Identity(nn.Module):
     """Identity layer that passes input unchanged.
     
-    Used to replace classification layers in pretrained models to extract features.
+    Used to replace classification layers in pretrained models to extract features. This is used 
+    specifically to replace the classification layers in pretrained models, allowing the model to 
+    output feature representations instead of class predictions.
     """
     def forward(self, x):
         return x

@@ -19,7 +19,7 @@ dataset:
   mask_dir: null                  # Optional: Path to directory containing masks
   selected_classes: null          # List of class names to use (others treated as background)
   num_workers: 0                  # Number of data loading workers
-  fraction: 0.01 # 1.0  # 🛠️                  # Train split ratio
+  fraction: 0.03 # 1.0  # 🛠️                  # Train split ratio
   num_classes: 2                  # Number of target classes
 
 
@@ -62,7 +62,7 @@ criterion:
 # Learning rate schedule parameters
 lr_scheduler:
   name: 'plateau'
-  epochs: 10                       # Number of epochs to train
+  epochs: 30                       # Number of epochs to train
   learning_rate: 1e-4 # 1.0e-3 # 🛠️      # Learning rate for the optimizer
   warmup_ratio: 0.1               # Ratio of warmup steps
   patience: 7                     # Early stopping patience
@@ -95,7 +95,7 @@ logging:
     task_type: "training"         # ClearML task type
     tags: []                      # List of tags for ClearML task
   
-  experiment_name: "experiment1"  # Name for the experiment
+  experiment_name: "experiment2"  # Name for the experiment
 
 
 # Miscellaneous parameters

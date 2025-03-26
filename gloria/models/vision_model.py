@@ -121,7 +121,7 @@ class ImageEncoder(nn.Module):
         """
         # Resize input to expected dimensions
         x = nn.functional.interpolate(x, size=(299, 299), mode="bilinear", align_corners=True)
-        x= x[:10,]   # 🛠️
+        # x= x[:10,]   # 🛠️
         # Extract features through backbone layers
         x = self.model.conv1(x)   # (batch_size, 64, 150, 150)
         x = self.model.bn1(x)
@@ -173,31 +173,39 @@ class ImageEncoder(nn.Module):
 
 class ImageClassifier(nn.Module):
     """
-    Generic image classifier that can be used with different backbone architectures.
+    Generic image classifier implementing transfer learning with configurable backbone architectures.
+    
+    This class supports two common transfer learning approaches:
+    1. Feature extraction: Uses a frozen pretrained backbone as a fixed feature extractor,
+       training only the classifier head (when freeze_encoder=True)
+    2. Fine-tuning: Trains both the backbone and classifier together, allowing the
+       backbone to adapt to the new task (when freeze_encoder=False)
     
     Attributes:
-        img_encoder: Backbone CNN for feature extraction
-        feature_dim: Dimension of extracted features
-        classifier: Linear classifier head
+        img_encoder: Backbone CNN for feature extraction (can be frozen or trainable)
+        feature_dim: Dimension of extracted features from the backbone
+        classifier: Linear classifier head that maps features to class predictions
     """
     def __init__(
             self, 
             config, 
             num_classes: Optional[int] = None, 
-            pretrained: str = 'DEFAULT',
+            pretrained: Optional[str] = None, 
             freeze_encoder: bool = False    
         ):
         super().__init__()
         
+
+        if pretrained is None:
+            pretrained = config.model.vision.pretrained
         self.img_encoder, self.feature_dim, _ = cnn_backbones.get_backbone(
             name=config.model.vision.model_name, 
-            weights=config.model.vision.pretrained
+            weights=pretrained
         )
 
         # Determine number of target classes
         if num_classes is None:
             num_classes = config.model.vision.num_targets
-            
         self.classifier = nn.Linear(self.feature_dim, num_classes)
         
         # Freeze encoder if specified
