@@ -145,9 +145,6 @@ def preprocess_pneumothorax_data(test_fraction: float = 0.15) -> None:
     Args:
         test_fraction: Fraction of data to use for testing and validation
                        (each will be this percentage of the total data)
-    
-    Raises:
-        FileNotFoundError: If the required dataset files cannot be found
     """
     try:
         df = pd.read_csv(PNEUMOTHORAX_ORIGINAL_TRAIN_CSV)

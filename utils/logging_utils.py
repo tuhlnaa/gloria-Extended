@@ -395,7 +395,16 @@ class ClearMLLogger(BaseLogger):
 
         # Store the logger for easy access
         self.logger = self.task.get_logger()
-        
+
+        # Force iteration-based reporting with a dummy metric
+        # Do this early in your script, before any time-consuming operations
+        self.logger.report_scalar(
+            title="dummy", 
+            series="force_iteration_reporting", 
+            iteration=0, 
+            value=0.0
+        )
+
         # Create output directories
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
