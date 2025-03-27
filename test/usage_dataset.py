@@ -67,15 +67,16 @@ if __name__ == "__main__":
 ╭──────────────────────────────────┬───────────────────────────────────────────────────╮
 │                        Parameter │ Value                                             │
 ├──────────────────────────────────┼───────────────────────────────────────────────────┤
-│                     data.dataset │ 'chexpert'                                        │
-│                data.image.imsize │ 256                                               │
+│                         data_dir │ './X-ray/CheXpert-v1.0'                           │
+│                        train_csv │ 'train.csv'                                       │
+│                        valid_csv │ 'valid.csv'                                       │
+│                         test_csv │ 'valid.csv'                                       │
+│                 model.batch_size │ 16                                                │
+│             dataset.dataset_name │ 'chexpert'                                        │
+│                 dataset.fraction │ 1.0                                               │
+│              dataset.num_workers │ 0                                                 │
+│             dataset.image.imsize │ 256                                               │
 │ transforms.random_crop.crop_size │ 224                                               │
-│                 train.batch_size │ 16                                                │
-│                train.num_workers │ 0                                                 │
-│                    path.data_dir │ './X-ray/CheXpert-v1.0-small'                     │
-│                   path.train_csv │ 'train.csv'                                       │
-│                   path.valid_csv │ 'valid.csv'                                       │
-│                    path.test_csv │ 'valid.csv'                                       │
 ╰──────────────────────────────────┴───────────────────────────────────────────────────╯
 
 Batch 1:

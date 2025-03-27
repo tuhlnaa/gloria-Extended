@@ -21,9 +21,11 @@ dataset:
   num_workers: 0                  # Number of data loading workers
   fraction: 0.03 # 1.0  # 🛠️                  # Train split ratio
   num_classes: 2                  # Number of target classes
+  image: 
+    imsize: 256                   # Target image size
+    
 
-
-# Augmentation parameters
+# Apply data augmentation for training
 transforms:  
   random_crop:
     crop_size: 224                 # Size of random crop for data augmentation
@@ -35,7 +37,7 @@ transforms:
 
 # Model parameters
 model:
-  image_size: 256                 # Input image size
+  # image_size: 256               # Input image size
   batch_size: 64                  # Input batch size for training
   resume: null                    # Resume full model and optimizer state from checkpoint
   pretrained: true                # Use pretrained model

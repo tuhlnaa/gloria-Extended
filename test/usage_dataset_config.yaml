@@ -1,21 +1,25 @@
-
 # Required parameters (must be provided via command line or config file)
 data_dir: "D:\\Kai\\DATA_Set_2\\X-ray\\CheXpert-v1.0-small"    # Path to the dataset directory
 train_csv: "train.csv"  # Path to the specific split CSV file
 valid_csv: "valid.csv"
 test_csv: "valid.csv"   # Using validation set as test set (test set labels hidden)
 
+
 model:
-  image_size: 256
   batch_size: 16  # Batch size
 
+
 dataset:
-  dataset_name: chexpert
-  fraction: 1.0
-  num_workers: 0  # Input batch size for training
+  dataset_name: chexpert  # Name of the dataset to use
+  fraction: 1.0           # Train split ratio
+  num_workers: 0          # Input batch size for training
+  image: 
+    imsize: 256           # Target image size
+    
 
 # Uses transforms built from config
 transforms:  
+  # norm: 'half'
   random_crop:
     crop_size: 224
   # random_horizontal_flip: 0.5

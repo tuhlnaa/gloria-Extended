@@ -14,16 +14,6 @@ from nltk.tokenize import RegexpTokenizer
 from transformers import AutoTokenizer
 from tqdm import tqdm
 
-from gloria.constants import (
-    CHEXPERT_DATA_DIR,
-    CHEXPERT_MASTER_CSV,
-    CHEXPERT_PATH_COL,
-    CHEXPERT_VIEW_COL,
-    CHEXPERT_REPORT_COL,
-    CHEXPERT_SPLIT_COL,
-)
-
-
 class MultimodalPretrainingDataset(Dataset):
     """Dataset for multimodal pretraining with medical images and reports."""
 
@@ -40,42 +30,55 @@ class MultimodalPretrainingDataset(Dataset):
             split: Dataset split (train, val, test)
             transform: Optional transforms to be applied on images
         """
-        if CHEXPERT_DATA_DIR is None:
-            raise RuntimeError(
-                "CheXpert data path is not defined.\n"
-                "Download data from: https://stanfordmlgroup.github.io/competitions/chexpert/ "
-                "and update CHEXPERT_DATA_DIR in ./gloria/constants.py"
-            )
-
+        # Get data directory and file paths from config
+        self.data_dir = Path(config.data_dir)
+        self.csv_path = self.data_dir / config.master_csv
+        
+        # Set column name mappings
+        self.path_col = config.dataset.columns.path
+        self.view_col = config.dataset.columns.view
+        self.report_col = config.dataset.columns.report
+        self.split_col = config.dataset.columns.split
+        
         self.config = config
         self.transform = transform
-        self.max_word_num = self.config.dataset.text.captions_per_image
+        self.max_word_num = config.dataset.text.captions_per_image
+
+        # Check if data directory exists
+        if not self.data_dir.exists():
+            raise RuntimeError(
+                f"Data directory {self.data_dir} does not exist.\n"
+                "Download data and update config.dataset.data_dir in your YAML file."
+            )
 
         # Load and preprocess the CheXpert dataframe
         self.df = self._load_chexpert_dataframe()
         
         # Filter only frontal view images
-        self.df = self.df[self.df[CHEXPERT_VIEW_COL] == "Frontal"]
+        self.df = self.df[self.df[self.view_col] == "Frontal"]
 
         # Load study paths and corresponding text data
         self.file_paths, self.path_to_text = self._load_text_data(split)
 
         # Initialize BERT tokenizer
-        self.tokenizer = AutoTokenizer.from_pretrained(self.config.model.text.bert_type)
-
+        self.tokenizer = AutoTokenizer.from_pretrained(config.model.text.bert_type)
 
     def _load_chexpert_dataframe(self) -> pd.DataFrame:
         """Load and preprocess the CheXpert CSV file."""
-        csv_path = Path(CHEXPERT_DATA_DIR) / CHEXPERT_MASTER_CSV
-        df = pd.read_csv(csv_path)
+        print(f"Loading CSV from: {self.csv_path}")
+        if not self.csv_path.exists():
+            raise FileNotFoundError(f"CSV file not found at: {self.csv_path}")
+            
+        df = pd.read_csv(self.csv_path)
         
-        # Convert relative paths to absolute paths
-        df[CHEXPERT_PATH_COL] = df[CHEXPERT_PATH_COL].apply(
-            lambda x: os.path.join(CHEXPERT_DATA_DIR, "/".join(x.split("/")[1:]))
-        )
+        # Convert relative paths to absolute paths if needed
+        if not os.path.isabs(df[self.path_col].iloc[0]):
+            df[self.path_col] = df[self.path_col].apply(
+                lambda x: os.path.join(self.data_dir, x)
+            )
         
+        print(f"Loaded dataframe with {len(df)} rows and columns: {df.columns.tolist()}")
         return df
-
 
     def _load_text_data(self, split: str) -> Tuple[List[str], Dict[str, List[str]]]:
         """Load text data for the specified split.
@@ -87,15 +90,15 @@ class MultimodalPretrainingDataset(Dataset):
             Tuple containing file paths and path-to-text mapping
         """
         # Path to cached captions
-        caption_path = Path(CHEXPERT_DATA_DIR) / "captions.pickle"
+        caption_path = self.data_dir / f"captions_{self.config.master_csv.split('.')[0]}.pickle"
         
         # Create captions if they don't exist
-        if not caption_path.exists():
-            print(f"Caption file {caption_path} does not exist. Creating captions...")
+        if not caption_path.exists() or self.config.dataset.force_rebuild_captions:
+            print(f"Caption file {caption_path} does not exist or rebuild forced. Creating captions...")
             path_to_text, to_remove = self._create_path_to_text_mapping()
             
             with open(caption_path, "wb") as f:
-                pickle.dump([path_to_text, to_remove], f, protocol=2)
+                pickle.dump([path_to_text, to_remove], f, protocol=4)
                 print(f"Saved captions to: {caption_path}")
         else:
             with open(caption_path, "rb") as f:
@@ -103,11 +106,19 @@ class MultimodalPretrainingDataset(Dataset):
                 path_to_text, to_remove = pickle.load(f)
 
         # Filter file paths for current split
-        file_paths = self.df[self.df[CHEXPERT_SPLIT_COL] == split][CHEXPERT_PATH_COL].tolist()
+        file_paths = self.df[self.df[self.split_col] == split][self.path_col].tolist()
+        
+        # For debugging purposes, limit to a small subset if configured
+        if hasattr(self.config.dataset, "debug_sample_size") and self.config.dataset.debug_sample_size > 0:
+            sample_size = min(self.config.dataset.debug_sample_size, len(file_paths))
+            file_paths = file_paths[:sample_size]
+            print(f"Debug mode: Using only {sample_size} samples")
+        
+        # Remove paths with missing reports
         file_paths = [f for f in file_paths if f not in to_remove]
-
+        
+        print(f"Loaded {len(file_paths)} file paths for split '{split}'")
         return file_paths, path_to_text
-
 
     def _create_path_to_text_mapping(self) -> Tuple[Dict[str, List[str]], List[str]]:
         """Create mapping from image paths to report text.
@@ -120,15 +131,21 @@ class MultimodalPretrainingDataset(Dataset):
         paths_to_remove = []
         path_to_text = {}
         
+        # Use findings section if available, otherwise use full report
+        use_findings = self.config.dataset.text.get('use_findings_section', False)
+        findings_col = 'section_findings' if use_findings and 'section_findings' in self.df.columns else None
+        
         for _, row in tqdm(self.df.iterrows(), total=self.df.shape[0], desc="Processing reports"):
             # Get report text if available
             captions = ""
-            if isinstance(row[CHEXPERT_REPORT_COL], str):
-                captions = row[CHEXPERT_REPORT_COL]
+            if findings_col and isinstance(row[findings_col], str) and row[findings_col].strip():
+                captions = row[findings_col]
+            elif isinstance(row[self.report_col], str):
+                captions = row[self.report_col]
 
             # Handle empty reports
-            if not captions:
-                paths_to_remove.append(row[CHEXPERT_PATH_COL])
+            if not captions or not isinstance(captions, str):
+                paths_to_remove.append(row[self.path_col])
                 continue
 
             # Normalize whitespace
@@ -179,9 +196,9 @@ class MultimodalPretrainingDataset(Dataset):
 
             # Store processed sentences or mark for removal
             if study_sentences:
-                path_to_text[row[CHEXPERT_PATH_COL]] = study_sentences
+                path_to_text[row[self.path_col]] = study_sentences
             else:
-                paths_to_remove.append(row[CHEXPERT_PATH_COL])
+                paths_to_remove.append(row[self.path_col])
 
         # Report statistics
         sentence_lengths = np.array(sentence_lengths)
@@ -197,9 +214,10 @@ class MultimodalPretrainingDataset(Dataset):
             f"max={num_sentences.max()} [p5={np.percentile(num_sentences, 5):.2f}, "
             f"p95={np.percentile(num_sentences, 95):.2f}]"
         )
+        
+        print(f"Processed {len(path_to_text)} valid reports, removed {len(paths_to_remove)} invalid paths")
 
         return path_to_text, paths_to_remove
-
 
     def get_caption(self, path: str) -> Tuple[dict, int]:
         """Get tokenized caption for an image."""
@@ -208,7 +226,7 @@ class MultimodalPretrainingDataset(Dataset):
         if not sentences:
             raise ValueError(f"No sentences found for path: {path}")
 
-        if self.config.data.text.full_report:
+        if self.config.dataset.text.full_report:
             # Use all sentences combined
             text = " ".join(sentences)
         else:
@@ -222,7 +240,7 @@ class MultimodalPretrainingDataset(Dataset):
             return_tensors="pt",
             truncation=True,
             padding="max_length",
-            max_length=self.config.data.text.word_num,
+            max_length=self.config.dataset.text.word_num,
         )
         
         # Calculate actual token length (excluding padding)
@@ -230,21 +248,34 @@ class MultimodalPretrainingDataset(Dataset):
 
         return tokens, token_length
 
-
     def get_image(self, img_path: str) -> Image.Image:
         """Load and preprocess an image."""
-        img_array = cv2.imread(str(img_path), 0)
-        resized_img = self._resize_image(img_array, self.config.data.image.imsize)
-        
-        # Convert to RGB PIL Image
-        pil_img = Image.fromarray(resized_img).convert("RGB")
-        
-        # Apply transforms if provided
-        if self.transform is not None:
-            pil_img = self.transform(pil_img)
+        try:
+            if not os.path.exists(img_path):
+                raise FileNotFoundError(f"Image not found at: {img_path}")
+                
+            img_array = cv2.imread(str(img_path), 0)
+            if img_array is None:
+                raise ValueError(f"Failed to read image: {img_path}")
+                
+            resized_img = self._resize_image(img_array, self.config.dataset.image.imsize)
+            
+            # Convert to RGB PIL Image
+            pil_img = Image.fromarray(resized_img).convert("RGB")
+            
+            # Apply transforms if provided
+            if self.transform is not None:
+                pil_img = self.transform(pil_img)
 
-        return pil_img
-
+            return pil_img
+        except Exception as e:
+            print(f"Error loading image {img_path}: {e}")
+            # Create a blank image as fallback
+            blank = np.zeros((self.config.dataset.image.imsize, self.config.dataset.image.imsize), dtype=np.uint8)
+            pil_img = Image.fromarray(blank).convert("RGB")
+            if self.transform is not None:
+                pil_img = self.transform(pil_img)
+            return pil_img
 
     def _resize_image(self, img: np.ndarray, target_size: int) -> np.ndarray:
         """Resize image preserving aspect ratio with padding."""
@@ -285,7 +316,6 @@ class MultimodalPretrainingDataset(Dataset):
         
         return padded_img
 
-
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, dict, int, str]:
         """Get an item by index."""
         path = self.file_paths[index]
@@ -295,7 +325,6 @@ class MultimodalPretrainingDataset(Dataset):
         caption_tokens, caption_length = self.get_caption(path)
         
         return img, caption_tokens, caption_length, path
-
 
     def __len__(self) -> int:
         """Get the dataset size."""
@@ -330,9 +359,9 @@ def multimodal_collate_fn(batch: List[Tuple]) -> Dict[str, Union[torch.Tensor, L
 
     # Stack tensors
     images = torch.stack(images)
-    input_ids = torch.stack(input_ids).squeeze()
-    token_type_ids = torch.stack(token_type_ids).squeeze()
-    attention_masks = torch.stack(attention_masks).squeeze()
+    input_ids = torch.cat(input_ids, dim=0)
+    token_type_ids = torch.cat(token_type_ids, dim=0)
+    attention_masks = torch.cat(attention_masks, dim=0)
 
     # Sort by caption length (descending)
     caption_lengths_tensor = torch.tensor(caption_lengths)
@@ -345,5 +374,5 @@ def multimodal_collate_fn(batch: List[Tuple]) -> Dict[str, Union[torch.Tensor, L
         "token_type_ids": token_type_ids[sorted_indices],
         "attention_mask": attention_masks[sorted_indices],
         "cap_lens": sorted_lengths,
-        "path": paths,  # Paths don't need to be sorted as they're for reference only
+        "paths": [paths[i] for i in sorted_indices],
     }

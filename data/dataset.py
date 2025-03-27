@@ -103,7 +103,7 @@ class ImageBaseDataset(Dataset):
             raise FileNotFoundError(f"Image not found or couldn't be read: {img_path}")
             
         # Resize image to configured dimensions
-        img = self._resize_img(img, self.config.model.image_size)
+        img = self._resize_img(img, self.config.dataset.image.imsize)
         pil_img = Image.fromarray(img).convert("RGB")
         
         if self.transform is not None:
