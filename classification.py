@@ -13,7 +13,7 @@ full_paths = [os.path.join(img_dir, path.replace('CheXpert-v1.0/', '')) for path
 
 # load model
 gloria_model = gloria.load_gloria(device=device)
-quit()
+
 # generate class prompt
 # cls_promts = {
 #    'Atelectasis': ['minimal residual atelectasis ', 'mild atelectasis' ...]

@@ -21,6 +21,8 @@ from configs.config import parse_args, save_config
 from data.dataset import get_chexpert_dataloader#, get_motion_segmentation_dataloader
 # from models.losses import CombinedLoss
 # from engine.trainer import Trainer
+from gloria.engine.trainer import Trainer
+from gloria.engine.validator import Validator
 from gloria.models import pytorch
 from utils.logging_utils import LoggingManager
 
@@ -111,103 +113,155 @@ def setup_training(config: OmegaConf) -> Tuple[nn.Module, torch.device, Dict[str
     model_class = pytorch.PYTORCH_MODULES[config.phase.lower()]
     model = model_class(config)
 
-    #logger.log_model_summary(model)
+    logger.log_model_summary(model)
     
     return model, {'train': train_loader, 'val': val_loader}, logger
 
 
-def run_training_pipeline(config: OmegaConf) -> dict:
-    """Enhanced training function with advanced features."""
-    # Set up training components
+def run_training_pipeline(config) -> Dict[str, float]:
+    """Run the complete training pipeline."""
+
+    # Initialize data loaders and logger
     model, dataloaders, logger = setup_training(config)
 
-    for epoch in range(0, config.lr_scheduler.epochs):
-        train_metrics = model.train_epoch(dataloaders['train'], epoch)
-
-        #train_metrics = {f"train_{k}": v for k, v in train_metrics.item()}
-        train_metrics.update({"learning_rate": model.optimizer.param_groups[0]['lr']})
-
-        if epoch % 3 == 0: 
-            model.scheduler["scheduler"].step(train_metrics["train_loss"])
-
-        # Log metrics
+    # Set up training components
+    trainer = Trainer(config)
+    validator = Validator(trainer.model, trainer.criterion, config)
+    
+    # Set up optimization components
+    trainer.setup_optimization(dataloaders.get('datamodule'))
+    
+    # Training loop
+    best_val_metric = 0.0
+    for epoch in range(config.lr_scheduler.epochs):
+        # Train for one epoch
+        train_metrics = trainer.train_epoch(dataloaders['train'], epoch)
+        train_metrics.update({"learning_rate": trainer.optimizer.param_groups[0]['lr']})
+        
+        # Log training metrics
         logger.log_metrics(train_metrics, epoch)
-
-        val_metrics = model.validate(dataloaders['val'])
-        #val_metrics.update({f"val_{k}": v for k, v in val_metrics.items()})
+        
+        # Run validation
+        val_metrics = validator.validate(dataloaders['val'])
         logger.log_metrics(val_metrics, epoch)
-
-    quit()
+        
+        # Step scheduler if needed
+        if hasattr(config.lr_scheduler, 'step_frequency') and epoch % config.lr_scheduler.step_frequency == 0:
+            if hasattr(trainer.scheduler, 'step'):
+                trainer.scheduler["scheduler"].step(val_metrics.get("val_loss", None))
+        
+        # Save checkpoint if improved
+        current_metric = val_metrics.get("val_mean_auroc", 0)
+        if current_metric > best_val_metric:
+            best_val_metric = current_metric
+            checkpoint_path = config.output_dir / "best_model.pth"
+            trainer.save_checkpoint(checkpoint_path)
+            
+        # Save regular checkpoint
+        if (epoch + 1) % config.get('checkpoint_frequency', 5) == 0:
+            checkpoint_path = config.output_dir / f"checkpoint_epoch_{epoch+1}.pth"
+            trainer.save_checkpoint(checkpoint_path)
     
-    # Calculate training steps with validation frequency
-    num_training_steps_per_epoch = len(dataloaders['train'])
-    total_steps = num_training_steps_per_epoch * config.epochs
-    warmup_steps = int(total_steps * config.warmup_ratio)
+    # Run final evaluation on test set if available
+    final_metrics = {}
+    if 'test' in dataloaders:
+        test_metrics = validator.test(dataloaders['test'])
+        logger.log_metrics(test_metrics, config.lr_scheduler.epochs)
+        final_metrics.update(test_metrics)
     
-    # Initialize Optimizer, Criterion, Scheduler
-    optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
-    criterion = create_criterion()
-    scheduler = LinearWarmupCosineAnnealingLR(
-        optimizer,
-        warmup_epochs=warmup_steps,
-        max_epochs=total_steps,
-        warmup_start_lr=config.learning_rate * 0.1,
-        eta_min=1e-6)
+    return final_metrics
+
+
+# def run_training_pipeline(config: OmegaConf) -> dict:
+#     """Enhanced training function with advanced features."""
+#     # Set up training components
+#     model, dataloaders, logger = setup_training(config)
+
+#     for epoch in range(0, config.lr_scheduler.epochs):
+#         train_metrics = model.train_epoch(dataloaders['train'], epoch)
+#         train_metrics.update({"learning_rate": model.optimizer.param_groups[0]['lr']})
+
+#         if epoch % 3 == 0: 
+#             model.scheduler["scheduler"].step(train_metrics["train_loss"])
+
+#         # Log metrics
+#         logger.log_metrics(train_metrics, epoch)
+
+#         val_metrics = model.validate(dataloaders['val'])
+#         #val_metrics.update({f"val_{k}": v for k, v in val_metrics.items()})
+#         logger.log_metrics(val_metrics, epoch)
+
+#     quit()
+    
+#     # Calculate training steps with validation frequency
+#     num_training_steps_per_epoch = len(dataloaders['train'])
+#     total_steps = num_training_steps_per_epoch * config.epochs
+#     warmup_steps = int(total_steps * config.warmup_ratio)
+    
+#     # Initialize Optimizer, Criterion, Scheduler
+#     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
+#     criterion = create_criterion()
+#     scheduler = LinearWarmupCosineAnnealingLR(
+#         optimizer,
+#         warmup_epochs=warmup_steps,
+#         max_epochs=total_steps,
+#         warmup_start_lr=config.learning_rate * 0.1,
+#         eta_min=1e-6)
     
     
-    # Initialize metrics and trainer
-    metrics = DiceScore(num_classes=config.num_classes, input_format='index')
-    trainer = Trainer(
-        model=model,
-        optimizer=optimizer,
-        scheduler=scheduler,
-        device=config.device,
-        output_dir=config.output_dir,
-        metrics=metrics,
-        logger=logger,
-        amp_mode="no", #config.amp,
-    )
+#     # Initialize metrics and trainer
+#     metrics = DiceScore(num_classes=config.num_classes, input_format='index')
+#     trainer = Trainer(
+#         model=model,
+#         optimizer=optimizer,
+#         scheduler=scheduler,
+#         device=config.device,
+#         output_dir=config.output_dir,
+#         metrics=metrics,
+#         logger=logger,
+#         amp_mode="no", #config.amp,
+#     )
 
-    # Log hyperparameters
-    hyperparameters = {
-        'model_config': vars(config),
-        'training_config': {
-            'batch_size': config.batch_size,
-            'epochs': config.epochs,
-            'learning_rate': config.lr,
-            'warmup_period': warmup_steps,
-            'total_steps': total_steps,
-            'device': config.device,
-            'amp_mode': config.amp
-        }
-    }
-    logger.log_hyperparameters(hyperparameters)
+#     # Log hyperparameters
+#     hyperparameters = {
+#         'model_config': vars(config),
+#         'training_config': {
+#             'batch_size': config.batch_size,
+#             'epochs': config.epochs,
+#             'learning_rate': config.lr,
+#             'warmup_period': warmup_steps,
+#             'total_steps': total_steps,
+#             'device': config.device,
+#             'amp_mode': config.amp
+#         }
+#     }
+#     logger.log_hyperparameters(hyperparameters)
 
 
-    # Resume if specified
-    if config.resume:
-        trainer.resume_from_checkpoint(config.resume)
-        # Log the resumed checkpoint as an artifact
-        # logger.log_artifact(config.resume, "checkpoints/resumed_from")
+#     # Resume if specified
+#     if config.resume:
+#         trainer.resume_from_checkpoint(config.resume)
+#         # Log the resumed checkpoint as an artifact
+#         # logger.log_artifact(config.resume, "checkpoints/resumed_from")
 
-    # Print training configuration
-    LoggingManager.print_training_config(
-        args=config,
-        total_steps=total_steps,
-        steps_per_epoch=num_training_steps_per_epoch,
-        train_loader=dataloaders['train'],
-        val_loader=dataloaders['val'],
-        loss_functions=criterion
-    )
+#     # Print training configuration
+#     LoggingManager.print_training_config(
+#         args=config,
+#         total_steps=total_steps,
+#         steps_per_epoch=num_training_steps_per_epoch,
+#         train_loader=dataloaders['train'],
+#         val_loader=dataloaders['val'],
+#         loss_functions=criterion
+#     )
 
-    trainer.train(
-        train_loader=dataloaders['train'],
-        criterion=criterion,
-        val_loader=dataloaders['val'],
-        num_epochs=config.epochs
-    )
+#     trainer.train(
+#         train_loader=dataloaders['train'],
+#         criterion=criterion,
+#         val_loader=dataloaders['val'],
+#         num_epochs=config.epochs
+#     )
 
-    logger.close()  # Cleanup
+#     logger.close()  # Cleanup
 
 
 def main():
