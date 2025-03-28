@@ -153,4 +153,23 @@ Batch 2:
   Example path: ./CheXpert-Plus/train/patient38792/study6/view1_frontal.jpg
   Sample caption: [CLS] narrative radiographic examination of the chest post needle biopsy 12 4 19 hours 11 31 hours c...
 ...
+
+# Caption IDs:
+These are numerical representations of text tokens after being processed by BERT's tokenizer. 
+Each word or subword in the radiology report text is converted to a numerical ID that BERT can process.
+
+# Token type IDs:
+These are used to distinguish between different segments in a sequence. 
+For example, in question-answering tasks, you might have one segment for the question and another for the context.
+
+# Attention mask:
+This is a binary mask that tells the model which tokens to "pay attention to" and which to ignore. 
+It has the same shape as the token IDs (16x97) and contains 1s for actual tokens and 0s for padding tokens. 
+Since sentences have different lengths, shorter sequences are padded to match the longest sequence, and the attention mask ensures that the model doesn't consider the padding when processing the text.
+
+# Caption lengths:
+This refers to the actual number of tokens in each caption before padding.
+
+# Sample caption:
+This is the actual text from the radiology report after being tokenized and then decoded back to text for display purposes. 
 """

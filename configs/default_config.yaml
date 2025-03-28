@@ -27,6 +27,7 @@ dataset:
 
 # Apply data augmentation for training
 transforms:  
+  norm: 'half'
   random_crop:
     crop_size: 224                 # Size of random crop for data augmentation
   # random_horizontal_flip: 0.5    # Probability of random horizontal flip

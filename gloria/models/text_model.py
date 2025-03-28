@@ -161,12 +161,6 @@ class BertEncoder(nn.Module):
     """
     
     def __init__(self, config):
-        """
-        Initialize the BertEncoder with the given configuration.
-        
-        Args:
-            config: Configuration object containing model parameters
-        """
         super().__init__()
         
         # Extract configuration parameters

@@ -77,7 +77,7 @@ def load_gloria(name: str = "gloria_resnet50", device: Union[str, torch.device] 
     # Build model and load weights
     gloria_model = builder.build_gloria_model(cfg).to(device)
     gloria_model.load_state_dict(state_dict)
-    
+    print(state_dict.keys())
     return gloria_model
 
 

@@ -56,7 +56,7 @@ def main():
             print(f"    {task}: {labels[:, i].tolist()}")
             
         # Only show first 3 batches
-        if batch_idx >= 2:
+        if batch_idx >= 1:
             break
 
 
@@ -88,11 +88,11 @@ Batch 1:
   Labels type: torch.float64
   Data range: (tensor(1.), tensor(0.))
   Label distributions:
-    Atelectasis: tensor([0., 1., 0., 0., 1.,...
-    Cardiomegaly: tensor([0., 1., 0., 0., 1.,...
-    Consolidation: tensor([0., 0., 0., 0., 0.,...
-    Edema: tensor([0., 1., 1., 0.,...
-    Pleural Effusion: tensor([0., 1., 0., 0.,...
+    Atelectasis: [1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+    Cardiomegaly: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    Consolidation: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    Edema: [0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0]
+    Pleural Effusion: [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0]
 
 Batch 2:
   Image shape: torch.Size([16, 3, 224, 224])
@@ -102,15 +102,10 @@ Batch 2:
   Data type: torch.float32
   Labels type: torch.float64
   Data range: (tensor(1.), tensor(0.))
-  Label distributions: ...
-
-Batch 3:
-  Image shape: torch.Size([16, 3, 224, 224])
-  Labels shape: torch.Size([16, 5])
-  Memory format: True
-  Device: cpu
-  Data type: torch.float32
-  Labels type: torch.float64
-  Data range: (tensor(1.), tensor(0.))
-  Label distributions: ...
+  Label distributions:
+    Atelectasis: [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0]
+    Cardiomegaly: [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]
+    Consolidation: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    Edema: [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0]
+    Pleural Effusion: [0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0]
 """

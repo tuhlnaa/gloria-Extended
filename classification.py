@@ -1,19 +1,19 @@
 import os
-import torch
 import gloria
 import pandas as pd 
 
 device = "cuda:1"
 CHEXPERT_5x200 = r"pretrained\chexpert_5x200.csv"
 img_dir = r"D:\Kai\DATA_Set_2\X-ray\CheXpert-v1.0"
+
 df = pd.read_csv(CHEXPERT_5x200)
+df = df[0:10]
 
 full_paths = [os.path.join(img_dir, path.replace('CheXpert-v1.0/', '')) for path in df['Path']]
 
 # load model
-#device = "cuda" if torch.cuda.is_available() else "cpu"
 gloria_model = gloria.load_gloria(device=device)
-
+quit()
 # generate class prompt
 # cls_promts = {
 #    'Atelectasis': ['minimal residual atelectasis ', 'mild atelectasis' ...]
@@ -32,6 +32,10 @@ similarities = gloria.zero_shot_classification(
     gloria_model, processed_imgs, processed_txt)
 
 print(similarities)
+labels = df[gloria.constants.CHEXPERT_COMPETITION_TASKS].to_numpy().argmax(axis=1)
+pred = similarities[gloria.constants.CHEXPERT_COMPETITION_TASKS].to_numpy().argmax(axis=1)
+acc = len(labels[labels == pred]) / len(labels) #0.17
+print(acc)
 #      Atelectasis  Cardiomegaly  Consolidation     Edema  Pleural Effusion
 # 0       1.371477     -0.416303      -1.023546 -1.460464          0.145969
 # 1       1.550474      0.277534       1.743613  0.187523          1.166638
