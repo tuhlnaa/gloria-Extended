@@ -6,14 +6,16 @@ models, with special support for GLoRIA pre-trained models.
 """
 import os
 import torch
+import torch.nn as nn
 
 from tqdm.auto import tqdm
-from typing import Dict, List
+from typing import Dict, List, Tuple
 from torch.utils.data import DataLoader
 
 from gloria import builder
+from gloria.utils.metrics import ClassificationMetrics
 from .validator import Validator
-
+from .validator import compute_classification_metrics
 class Trainer:
     """Trainer class for image classification models."""
 
@@ -54,6 +56,45 @@ class Trainer:
             self.datamodule
         )
 
+    def train_step(self, batch: Tuple[torch.Tensor, ...], criterion: Dict[str, nn.Module]) -> Dict[str, float]:
+        """Perform single training step with multiple loss heads."""
+        total_loss = 0
+        total_samples = 0
+        images, labels = batch
+
+        
+        self.model.train()
+        self.optimizer.zero_grad()              # Reset gradients
+        logits = self.model(images)             # Forward pass
+        total_loss = criterion(logits, labels)  # Compute loss
+        total_loss.backward()                   # Backward pass
+
+        # Gradient clipping
+        if hasattr(self.config.optimizer, 'clip_grad'):
+            torch.nn.utils.clip_grad_norm_(
+                self.model.parameters(), 
+                max_norm=self.config.optimizer.clip_grad
+            )
+
+        self.optimizer.step()  # Update parameters
+        self.scheduler.step()
+
+        total_loss += total_loss.item()
+        total_samples += len(images)
+
+        # Binary prediction for each class (1 if probability >= 0.5, else 0)
+        probabilities = torch.sigmoid(logits)
+        predicted_labels = (probabilities >= 0.5).float()
+
+        # self.metrics.update(predicted_masks, labels)
+
+        return {
+            "loss": total_loss / total_samples,
+            "logits": logits,                    # Raw logits for further processing
+            "probabilities": probabilities,      # Probability scores (0-1) for each class
+            "predictions": predicted_labels      # Binary predictions (0 or 1) for each class
+        }
+
 
     def train_epoch(self, train_loader: DataLoader, epoch: int) -> Dict[str, float]:
         """Train the model for one epoch."""
@@ -61,7 +102,11 @@ class Trainer:
         epoch_loss = 0.0
         all_logits = []
         all_labels = []
-        
+
+        # Create metrics tracker
+        metrics = ClassificationMetrics(split='train')
+        metrics.reset()
+
         for batch_idx, batch in enumerate(tqdm(train_loader, desc=f"Train Epoch: {epoch}")):
         # for batch in tqdm(train_loader, desc="Training"):
             images, labels = batch
@@ -86,22 +131,24 @@ class Trainer:
             epoch_loss += loss.item()
             all_logits.append(logits.detach())
             all_labels.append(labels.detach())
-            
+
+            metrics.update(logits, labels, loss)
+
             # Print progress at intervals
             if batch_idx % self.config.get('log_interval', 10) == 0:
                 print(f"Train Epoch: {epoch} [{batch_idx}/{len(train_loader)}]\tLoss: {loss.item():.6f}")
         
-        # Calculate epoch metrics
-        metrics = self._compute_metrics(
-            all_logits, 
-            all_labels, 
-            epoch_loss, 
-            len(train_loader), 
-            "train"
-        )
+        # # Calculate epoch metrics
+        # metrics = self._compute_metrics(
+        #     all_logits, 
+        #     all_labels, 
+        #     epoch_loss, 
+        #     len(train_loader), 
+        #     "train"
+        # )
             
-        return metrics
-
+        # return metrics
+        return metrics.compute()
 
     def _compute_metrics(
             self, 
@@ -124,8 +171,6 @@ class Trainer:
         Returns:
             Dict[str, float]: Dictionary of computed metrics
         """
-        # Imported here to avoid circular imports
-        from .validator import compute_classification_metrics
         
         return compute_classification_metrics(
             logits, labels, loss_sum, num_batches, split

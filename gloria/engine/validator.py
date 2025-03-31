@@ -11,9 +11,11 @@ import torch
 import numpy as np
 
 from tqdm.auto import tqdm
-from typing import Dict, List, Tuple
+from typing import Dict, List
 from torch.utils.data import DataLoader
-from sklearn.metrics import average_precision_score, roc_auc_score
+from torchmetrics.classification import MultilabelAUROC, MultilabelAveragePrecision
+
+from gloria.utils.metrics import ClassificationMetrics
 
 
 class Validator:
@@ -35,6 +37,10 @@ class Validator:
         val_loss = 0.0
         all_logits = []
         all_labels = []
+        
+        # Create metrics tracker
+        metrics = ClassificationMetrics(split='val')
+        metrics.reset()
 
         with torch.no_grad():
             for batch in tqdm(val_loader, desc="Training"):
@@ -48,17 +54,20 @@ class Validator:
                 val_loss += loss.item()
                 all_logits.append(logits)
                 all_labels.append(labels)
-        
+
+                metrics.update(logits, labels, loss)
+
         # Calculate validation metrics
-        metrics = compute_classification_metrics(
-            all_logits, 
-            all_labels, 
-            val_loss, 
-            len(val_loader), 
-            "val"
-        )
+        # metrics = compute_classification_metrics(
+        #     all_logits, 
+        #     all_labels, 
+        #     val_loss, 
+        #     len(val_loader), 
+        #     "val"
+        # )
         
-        return metrics
+        # return metrics
+        return metrics.compute()
 
 
     def test(self, test_loader: DataLoader) -> Dict[str, float]:
@@ -127,15 +136,15 @@ def compute_classification_metrics(
         split: str
     ) -> Dict[str, float]:
     """
-    Compute classification metrics from model outputs.
-    
+    Compute classification metrics from model outputs using torchmetrics.
+   
     Args:
         logits: List of model logits from each batch
         labels: List of labels from each batch
         loss_sum: Sum of losses across batches
         num_batches: Number of batches processed
         split: Current split ('train', 'val', or 'test')
-        
+       
     Returns:
         Dict[str, float]: Dictionary of computed metrics
     """
@@ -144,70 +153,37 @@ def compute_classification_metrics(
     labels_cat = torch.cat(labels)
     probabilities = torch.sigmoid(logits_cat)
     
-    # Convert to numpy arrays for sklearn metrics
-    labels_np = labels_cat.cpu().numpy()
-    probs_np = probabilities.cpu().numpy()
+    # Get number of classes
+    num_classes = labels_cat.shape[1]
     
-    # Calculate metrics per class
-    auroc_list, auprc_list = _calculate_per_class_metrics(labels_np, probs_np)
+    # Initialize torchmetrics
+    auroc_metric = MultilabelAUROC(num_labels=num_classes, average=None)
+    auprc_metric = MultilabelAveragePrecision(num_labels=num_classes, average=None)
     
-    # Calculate mean metrics
-    mean_auprc = float(np.mean(auprc_list))
-    mean_auroc = float(np.mean(auroc_list))
+    # Calculate metrics
+    labels_cat = labels_cat.to(torch.int32)
+    auroc_list = auroc_metric(probabilities, labels_cat).cpu().tolist()
+    auprc_list = auprc_metric(probabilities, labels_cat).cpu().tolist()
+
+    # Calculate mean metrics, filtering out NaN values (torchmetrics may return NaN for classes with all same labels)
+    mean_auprc = float(np.mean([x for x in auprc_list if not np.isnan(x) and x != 0.0]))
+    mean_auroc = float(np.mean([x for x in auroc_list if not np.isnan(x) and x != 0.0]))
     mean_loss = loss_sum / num_batches
-    
+   
     # Create metrics dictionary
     metrics = {
         f"{split}_loss": mean_loss,
         f"{split}_mean_auroc": mean_auroc,
         f"{split}_mean_auprc": mean_auprc,
     }
-    
+   
     # Add per-class metrics
     for i, (auroc, auprc) in enumerate(zip(auroc_list, auprc_list)):
         metrics[f"{split}_auroc_class_{i}"] = float(auroc)
         metrics[f"{split}_auprc_class_{i}"] = float(auprc)
-    
+   
     # Print metrics summary
     print(f"{split.capitalize()} metrics - Loss: {mean_loss:.4f}, "
           f"AUROC: {mean_auroc:.4f}, AUPRC: {mean_auprc:.4f}")
-    
+   
     return metrics
-
-
-def _calculate_per_class_metrics(
-        labels: np.ndarray, 
-        probabilities: np.ndarray
-    ) -> Tuple[List[float], List[float]]:
-    """
-    Calculate AUROC and AUPRC for each class.
-    
-    Args:
-        labels: Ground truth labels
-        probabilities: Predicted probabilities
-        
-    Returns:
-        Tuple[List[float], List[float]]: Lists of AUROC and AUPRC values per class
-    """
-    auroc_list, auprc_list = [], []
-    
-    for i in range(labels.shape[1]):
-        class_labels = labels[:, i]
-        class_probs = probabilities[:, i]
-        
-        # Skip calculation if there are NaN values or only one class present
-        if np.isnan(class_probs).any() or len(np.unique(class_labels)) < 2:
-            auprc_list.append(0.0)
-            auroc_list.append(0.0)
-        else:
-            try:
-                auprc = average_precision_score(class_labels, class_probs)
-                auroc = roc_auc_score(class_labels, class_probs)
-                auprc_list.append(auprc)
-                auroc_list.append(auroc)
-            except Exception as e:
-                print(f"Error calculating metrics for class {i}: {e}")
-                auprc_list.append(0.0)
-                auroc_list.append(0.0)
-                
-    return auroc_list, auprc_list
