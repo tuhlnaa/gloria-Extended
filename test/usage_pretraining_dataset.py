@@ -12,7 +12,7 @@ PROJECT_ROOT = Path(__file__).parents[1]
 sys.path.append(str(PROJECT_ROOT))
 
 from data.dataset import build_transformation
-from gloria.datasets.pretraining_datasetV2 import MultimodalPretrainingDataset, multimodal_collate_fn
+from gloria.datasets.pretraining_datasetV2 import MultimodalPretrainingDataset, get_chexpert_multimodal_dataloader, multimodal_collate_fn
 from utils.logging_utils import LoggingManager
 
 
@@ -38,31 +38,34 @@ def main():
     # Print configuration using the logging utility
     LoggingManager.print_config(config, "Configuration")
 
-    split = "train"
-    transform = build_transformation(config, "train")
+    # Create dataloader
+    data_loader, dataset = get_chexpert_multimodal_dataloader(config, split="train")
+
+    # split = "train"
+    # transform = build_transformation(config, "train")
     
-    # Create dataset
-    dataset = MultimodalPretrainingDataset(
-        config=config,
-        split=split,
-        transform=transform,
-    )
+    # # Create dataset
+    # dataset = MultimodalPretrainingDataset(
+    #     config=config,
+    #     split=split,
+    #     transform=transform,
+    # )
 
-    if len(dataset) == 0:
-        raise ValueError(f"Dataset is empty! No images found. Please check the paths and file formats.")
-    print(f"Dataset created successfully with {len(dataset)} samples")
+    # if len(dataset) == 0:
+    #     raise ValueError(f"Dataset is empty! No images found. Please check the paths and file formats.")
+    # print(f"Dataset created successfully with {len(dataset)} samples")
 
-    # Create dataloader with parameters from config
-    data_loader = DataLoader(
-        dataset,
-        batch_size=config.model.batch_size,
-        shuffle=(split == "train"),
-        num_workers=config.dataset.num_workers,
-        pin_memory=getattr(config.model, "pin_memory", False),
-        drop_last=getattr(config.model, "drop_last", False) if split == "train" else True,
-        collate_fn=multimodal_collate_fn
-    )
-    print(f"DataLoader created successfully with {len(data_loader)} batches")
+    # # Create dataloader with parameters from config
+    # data_loader = DataLoader(
+    #     dataset,
+    #     batch_size=config.model.batch_size,
+    #     shuffle=(split == "train"),
+    #     num_workers=config.dataset.num_workers,
+    #     pin_memory=getattr(config.model, "pin_memory", False),
+    #     drop_last=getattr(config.model, "drop_last", False) if split == "train" else True,
+    #     collate_fn=multimodal_collate_fn
+    # )
+    # print(f"DataLoader created successfully with {len(data_loader)} batches")
 
     # Test loading a few batches
     print("\nTesting batch loading:")

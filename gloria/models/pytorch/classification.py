@@ -2,6 +2,8 @@ import os
 import json
 import torch
 import numpy as np
+
+from omegaconf import OmegaConf
 from typing import Dict, List, Tuple
 from sklearn.metrics import average_precision_score, roc_auc_score
 
@@ -16,13 +18,8 @@ class ClassificationModel:
     Handles training, validation, and testing with appropriate metrics tracking.
     """
 
-    def __init__(self, config):
-        """
-        Initialize the classification model.
-        
-        Args:
-            cfg: Configuration object containing model parameters
-        """
+    def __init__(self, config: OmegaConf):
+        """Initialize the classification model."""
         self.config = config
         self.lr = config.lr_scheduler.learning_rate
         self.device = config.device.device
@@ -43,12 +40,7 @@ class ClassificationModel:
 
 
     def _initialize_model(self) -> torch.nn.Module:
-        """
-        Initialize the classification model based on configuration.
-        
-        Returns:
-            torch.nn.Module: Initialized model
-        """
+        """Initialize the classification model based on configuration."""
         return builder.build_image_model(self.config)
         # 🛠️
         # if self.config.model.vision.model_name in gloria.available_models():
@@ -75,16 +67,7 @@ class ClassificationModel:
 
 
     def train_epoch(self, train_loader, epoch: int) -> Dict[str, float]:
-        """
-        Train the model for one epoch.
-        
-        Args:
-            train_loader: DataLoader for training data
-            epoch: Current epoch number
-            
-        Returns:
-            Dict[str, float]: Dictionary of training metrics
-        """
+        """Train the model for one epoch."""
         self.model.train()
         epoch_loss = 0.0
         all_logits = []

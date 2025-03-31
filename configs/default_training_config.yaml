@@ -1,0 +1,125 @@
+# Default configuration for RSNA Trauma Detection model
+# All paths will be converted to Path objects automatically
+
+# Required parameters (must be provided via command line or config file)
+output_dir: "./output"  # Path to save model and results
+data_dir: "D:\\Kai\\DATA_Set_2\\X-ray\\CheXpert-v1.0-small"    # Path to the dataset directory
+master_csv: "df_chexpert_plus_240401.csv"
+
+phase: "pretrain"
+
+# Dataset parameters
+dataset:
+  dataset_name: "chexpert"        # Name of the dataset to use
+  num_workers: 0                  # Number of data loading workers
+  fraction: 0.02 # 1.0  # 🛠️      # Train split ratio
+  image: 
+    imsize: 256                   # Target image size
+  text: 
+    word_num: 97                  # Maximum number of tokens after tokenization
+    captions_per_image: 5         # Maximum number of words to use per image
+    full_report: false            # Use full report (true) or single sentence (false)
+    use_findings_section: false   # Prioritize findings section if available
+  columns:                        # Column names in the CSV
+    path: "path_to_image"         # Column with image paths
+    view: "frontal_lateral"       # Column specifying view type (Frontal/Lateral)
+    report: "report"              # Column with the full report text
+    split: "split"                # Column specifying train/val/test split
+  force_rebuild_captions: false   # Set to true to rebuild the cached captions
+  debug_sample_size: 0            # For testing, limit to this many samples (0 for all)
+    
+
+# Apply data augmentation for training
+transforms:  
+  norm: 'half'
+  random_crop:
+    crop_size: 224                 # Size of random crop for data augmentation
+  # random_horizontal_flip: 0.5    # Probability of random horizontal flip
+  # random_affine: null            # Parameters for random affine transformation
+  # color_jitter: null             # Parameters for color jittering
+  # norm: norm                     # Normalization parameters
+
+
+# Model parameters
+model:
+  batch_size: 64                  # Input batch size for training
+  resume: null                    # Resume full model and optimizer state from checkpoint
+  pretrained: true                # Use pretrained model
+  vision:
+      model_name: 'resnet_50'
+      freeze_cnn: true
+      pretrained: "DEFAULT"
+      num_targets: 5
+  text:  
+      bert_type: "emilyalsentzer/Bio_ClinicalBERT"
+      last_n_layers: 4
+      aggregate_method: 'sum'
+      norm: false
+      embedding_dim: 768
+      freeze_bert: false
+      agg_tokens: true
+  gloria: 
+      local_loss_weight: 1.0
+      global_loss_weight: 1.0
+      temp_attention: 4.0
+      temp_similarity: 5.0
+      temp_loss: 10.0
+
+# Optimizer parameters
+optimizer:
+  name: "Adam"
+  weight_decay: 1e-6 # 0.01  # 🛠️     # Weight decay factor
+  clip_grad: 0.25  # 1.0 # 🛠️
+
+
+# Regularization parameters
+criterion: 
+  name: "BCE"
+  class_weights: null
+
+
+# Learning rate schedule parameters
+lr_scheduler:
+  name: 'plateau'
+  epochs: 20                       # Number of epochs to train
+  learning_rate: 1e-4 # 1.0e-3 # 🛠️      # Learning rate for the optimizer
+  warmup_ratio: 0.1               # Ratio of warmup steps
+  patience: 7                     # Early stopping patience
+  monitor: 'val_loss'  # This parameter specifies which metric to watch for making scheduler decisions. 
+  interval: 'epoch'    # This determines when the scheduler should be called. 
+  val_check_interval: null
+  step_frequency: 3    # This determines how often the scheduler should be called according to the interval. 
+
+
+# Device & distributed training parameters
+device:
+  amp: "no"                       # Automatic mixed precision: "no", "fp16", "bf16"
+  device: "cuda:1"                # Device to use: "cpu", "cuda:0", etc.
+
+
+# Logging parameters
+logging:
+  logger: "clearml"           # Logger to use: "tensorboard", "neptune", "clearml"
+  
+  # Neptune logger parameters (only required if logger="neptune")
+  neptune:
+    project: null                 # Neptune project name
+    api_token: null               # Neptune API token
+    run_id: null                  # Neptune run ID to resume (e.g., "CLS-123")
+  
+  # ClearML logger parameters (only required if logger="clearml")
+  clearml:
+    project: null                 # ClearML project name
+    task_id: false                # ClearML task ID to resume or boolean flag
+    task_type: "training"         # ClearML task type
+    tags: []                      # List of tags for ClearML task
+  
+  experiment_name: "experiment6"  # Name for the experiment
+
+
+# Miscellaneous parameters
+misc:
+  seed: 42                        # Random seed
+  validation_freq: 100            # Frequency of validation (iterations)
+  log_freq: 100                   # Frequency of logging metrics (iterations)
+  save_freq: 100                  # Frequency of saving checkpoints (iterations)

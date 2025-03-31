@@ -371,7 +371,7 @@ def get_chexpert_dataloader(
         raise ValueError(f"Dataset is empty! No images found. Please check the paths and file formats.")
     
     # Create dataloader with parameters from config
-    dataloader = DataLoader(
+    data_loader = DataLoader(
         dataset,
         batch_size=config.model.batch_size,
         shuffle=(split == "train"),
@@ -379,5 +379,6 @@ def get_chexpert_dataloader(
         pin_memory=getattr(config.model, "pin_memory", False),
         drop_last=getattr(config.model, "drop_last", False) if split == "train" else True
     )
+    print(f"DataLoader created successfully with {len(data_loader)} batches")
     
-    return dataloader
+    return data_loader

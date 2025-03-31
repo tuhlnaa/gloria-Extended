@@ -1,18 +1,23 @@
 import os
 import re
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
-
 import cv2
+import torch
+import pickle
+
 import numpy as np
 import pandas as pd
-import pickle
-import torch
-from torch.utils.data import Dataset, DataLoader
+import torchvision.transforms as T
+
 from PIL import Image
-from nltk.tokenize import RegexpTokenizer
-from transformers import AutoTokenizer
+from pathlib import Path
 from tqdm import tqdm
+from transformers import AutoTokenizer
+from typing import Dict, List, Optional, Tuple, Union
+from torch.utils.data import Dataset, DataLoader
+from nltk.tokenize import RegexpTokenizer
+
+from data.dataset import build_transformation
+
 
 class MultimodalPretrainingDataset(Dataset):
     """Dataset for multimodal pretraining with medical images and reports."""
@@ -376,3 +381,55 @@ def multimodal_collate_fn(batch: List[Tuple]) -> Dict[str, Union[torch.Tensor, L
         "cap_lens": sorted_lengths,
         "paths": [paths[i] for i in sorted_indices],
     }
+
+
+def get_chexpert_multimodal_dataloader(
+        config,
+        split: str = "train",
+        transform: Optional[T.Compose] = None, 
+    ) -> DataLoader:
+    """
+    Create a DataLoader for the CheXpert medical multimodal dataset.
+    
+    Args:
+        config: Configuration object containing dataset parameters
+            Expected structure:
+            - config.data_dir: Base directory containing CheXpert data
+            - config.{split}_csv: Path to the specific split CSV file
+            - config.model.batch_size: Batch size
+            - config.dataset.num_workers: Number of workers
+            - config.dataset.fraction: Optional fraction of data to use (for training)
+        split: Dataset split ('train', 'valid', or 'test')
+        transform: Optional custom transformation pipeline; if None, uses transforms built from config
+        
+    Returns:
+        DataLoader for the CheXpert dataset
+    """
+    # Create transformation if not provided
+    if transform is None:
+        transform = build_transformation(config, split)
+    
+    # Create dataset
+    dataset = MultimodalPretrainingDataset(
+        config=config,
+        split=split,
+        transform=transform,
+    )
+    
+    if len(dataset) == 0:
+        raise ValueError(f"Dataset is empty! No images found. Please check the paths and file formats.")
+    
+    # Create dataloader with parameters from config
+    data_loader = DataLoader(
+        dataset,
+        batch_size=config.model.batch_size,
+        shuffle=(split == "train"),
+        num_workers=config.dataset.num_workers,
+        pin_memory=getattr(config.model, "pin_memory", False),
+        drop_last=getattr(config.model, "drop_last", False) if split == "train" else True,
+        collate_fn=multimodal_collate_fn
+    )
+    print(f"DataLoader created successfully with {len(data_loader)} batches")
+
+
+    return data_loader, dataset

@@ -148,9 +148,10 @@
 
 import torch
 import torch.nn as nn
-from transformers import AutoModel, AutoTokenizer
-from typing import Dict, List, Tuple, Optional, Literal
 
+from transformers import AutoModel, AutoTokenizer
+from typing import List, Tuple
+from omegaconf import OmegaConf
 
 class BertEncoder(nn.Module):
     """
@@ -160,7 +161,7 @@ class BertEncoder(nn.Module):
     It supports various aggregation methods and can be configured to handle different embedding strategies.
     """
     
-    def __init__(self, config):
+    def __init__(self, config: OmegaConf):
         super().__init__()
         
         # Extract configuration parameters

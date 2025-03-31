@@ -31,9 +31,9 @@ model:
     gloria: 
         local_loss_weight: 1.0
         global_loss_weight: 1.0
-        temp1: 4.0
-        temp2: 5.0
-        temp3: 10.0
+        temp_attention: 4.0
+        temp_similarity: 5.0
+        temp_loss: 10.0
     vision:
         model_name: 'resnet_50'
         freeze_cnn: false

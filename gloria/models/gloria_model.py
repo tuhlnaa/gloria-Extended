@@ -42,9 +42,9 @@ class GLoRIA(nn.Module):
         self.global_loss_weight = config.model.gloria.global_loss_weight
         
         # Temperature parameters for scaling similarity scores
-        self.temp_attention = config.model.gloria.temp1
-        self.temp_similarity = config.model.gloria.temp2
-        self.temp_loss = config.model.gloria.temp3
+        self.temp_attention = config.model.gloria.temp_attention
+        self.temp_similarity = config.model.gloria.temp_similarity
+        self.temp_loss = config.model.gloria.temp_loss
         
         # Initialize tokenizer
         self._setup_tokenizer()
