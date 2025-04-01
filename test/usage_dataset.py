@@ -15,12 +15,7 @@ from utils.logging_utils import LoggingManager
 
 
 def set_seed(seed: int = 42) -> None:
-    """
-    Set random seed for reproducibility.
-    
-    Args:
-        seed: Random seed value
-    """
+    """Set random seed for reproducibility."""
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)

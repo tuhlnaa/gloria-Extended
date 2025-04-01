@@ -1,8 +1,8 @@
 
 # Required parameters (must be provided via command line or config file)
-data_dir: "D:/Kai/DATA_Set_2/X-ray/CheXpert-v1.0-small"    # Path to the dataset directory
-master_csv: "df_chexpert_plus_240401.csv"
-#master_csv: "新文字文件.csv"
+data_dir: "D:/Kai/DATA_Set_2/X-ray/chexpert_5x200"    # Path to the dataset directory
+master_csv: "chexpert_5x200.csv"
+
 
 model:
   batch_size: 16  # Batch size
@@ -12,7 +12,7 @@ model:
 
 dataset:
   dataset_name: chexpert  # Name of the dataset to use
-  fraction: 1.0           # Train split ratio
+  fraction: 1.0          # Train split ratio
   num_workers: 0          # Input batch size for training
   image: 
     imsize: 256           # Target image size
@@ -22,10 +22,10 @@ dataset:
     full_report: false            # Use full report (true) or single sentence (false)
     use_findings_section: false   # Prioritize findings section if available
   columns:                        # Column names in the CSV
-    path: "path_to_image"         # Column with image paths
-    view: "frontal_lateral"       # Column specifying view type (Frontal/Lateral)
-    report: "section_impression"  # Column with the full report text
-    split: "split"                # Column specifying train/val/test split
+    path: "Path"                  # Column with image paths
+    view: "Frontal/Lateral"       # Column specifying view type (Frontal/Lateral)
+    report: "Report Impression"   # Column with the full report text
+    split: null                # Column specifying train/val/test split
   force_rebuild_captions: false   # Set to true to rebuild the cached captions
   debug_sample_size: 0            # For testing, limit to this many samples (0 for all)
   

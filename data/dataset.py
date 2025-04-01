@@ -195,7 +195,9 @@ class CheXpertImageDataset(ImageBaseDataset):
         
         # Apply data fraction sampling if specified in config
         if hasattr(config.dataset, 'fraction') and config.dataset.fraction != 1 and split == "train":
+            orig_size = len(self.df)
             self.df = self.df.sample(frac=config.dataset.fraction, random_state=42)
+            print(f"Applied dataset fraction {config.dataset.fraction}: reduced from {orig_size} to {len(self.df)} samples")
 
         # Filter by view type if specified
         if view_type != "All":

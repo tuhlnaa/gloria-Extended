@@ -23,7 +23,7 @@ dataset:
   columns:                        # Column names in the CSV
     path: "path_to_image"         # Column with image paths
     view: "frontal_lateral"       # Column specifying view type (Frontal/Lateral)
-    report: "report"              # Column with the full report text
+    report: "section_impression"  # Column with the full report text
     split: "split"                # Column specifying train/val/test split
   force_rebuild_captions: false   # Set to true to rebuild the cached captions
   debug_sample_size: 0            # For testing, limit to this many samples (0 for all)
@@ -81,7 +81,7 @@ criterion:
 # Learning rate schedule parameters
 lr_scheduler:
   name: 'plateau'
-  epochs: 20                       # Number of epochs to train
+  epochs: 10                       # Number of epochs to train
   learning_rate: 1e-4 # 1.0e-3 # 🛠️      # Learning rate for the optimizer
   warmup_ratio: 0.1               # Ratio of warmup steps
   patience: 7                     # Early stopping patience
@@ -123,3 +123,6 @@ misc:
   validation_freq: 100            # Frequency of validation (iterations)
   log_freq: 100                   # Frequency of logging metrics (iterations)
   save_freq: 100                  # Frequency of saving checkpoints (iterations)
+  visualization_interval: 100     # Visualize attention maps periodically (iterations)
+  nvis: 8 
+  rand_vis: false 

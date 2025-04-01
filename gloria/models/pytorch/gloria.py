@@ -80,13 +80,13 @@ class GLoRIAModel:
             epoch_loss += loss.item()
             
             # Visualize attention maps periodically if configured
-            update_interval = self.config.train.update_interval
-            if update_interval is not None and batch_idx % update_interval == 0:
+            visualization_interval = self.config.misc.visualization_interval
+            if visualization_interval is not None and batch_idx % visualization_interval == 0:
                 imgs = batch["imgs"].cpu()
                 self.model.plot_attn_maps(
                     attn_maps, imgs, sents, epoch, batch_idx
                 )
-            
+
             # Print progress
             if batch_idx % 10 == 0:
                 print(f"Train Epoch: {epoch} [{batch_idx}/{len(train_loader)}]\tLoss: {loss.item():.6f}")

@@ -58,15 +58,22 @@ class MultimodalPretrainingDataset(Dataset):
 
         # Load and preprocess the CheXpert dataframe
         self.df = self._load_chexpert_dataframe()
-        
+
         # Filter only frontal view images
         self.df = self.df[self.df[self.view_col] == "Frontal"]
 
+        # Apply data fraction sampling if specified in config and we're in training mode
+        if hasattr(config.dataset, 'fraction') and config.dataset.fraction != 1 and split == "train":
+            orig_size = len(self.df)
+            self.df = self.df.sample(frac=config.dataset.fraction, random_state=42)
+            print(f"Applied dataset fraction {config.dataset.fraction}: reduced from {orig_size} to {len(self.df)} samples")
+            
         # Load study paths and corresponding text data
         self.file_paths, self.path_to_text = self._load_text_data(split)
 
         # Initialize BERT tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(config.model.text.bert_type)
+
 
     def _load_chexpert_dataframe(self) -> pd.DataFrame:
         """Load and preprocess the CheXpert CSV file."""
@@ -85,15 +92,9 @@ class MultimodalPretrainingDataset(Dataset):
         print(f"Loaded dataframe with {len(df)} rows and columns: {df.columns.tolist()}")
         return df
 
+
     def _load_text_data(self, split: str) -> Tuple[List[str], Dict[str, List[str]]]:
-        """Load text data for the specified split.
-        
-        Args:
-            split: Dataset split (train, val, test)
-            
-        Returns:
-            Tuple containing file paths and path-to-text mapping
-        """
+        """Load text data for the specified split."""
         # Path to cached captions
         caption_path = self.data_dir / f"captions_{self.config.master_csv.split('.')[0]}.pickle"
         
@@ -110,27 +111,32 @@ class MultimodalPretrainingDataset(Dataset):
                 print(f"Loading captions from {caption_path}")
                 path_to_text, to_remove = pickle.load(f)
 
-        # Filter file paths for current split
-        file_paths = self.df[self.df[self.split_col] == split][self.path_col].tolist()
-        
+        # Filter file paths for current split or use full dataset if split_col is not specified
+        if self.split_col is not None:
+            file_paths = self.df[self.df[self.split_col] == split][self.path_col].tolist()
+            print(f"Filtering paths for split '{split}' using column '{self.split_col}'")
+        else:
+            file_paths = self.df[self.path_col].tolist()
+            print(f"Split column not specified. Using all {len(file_paths)} paths from CSV")
+
         # For debugging purposes, limit to a small subset if configured
         if hasattr(self.config.dataset, "debug_sample_size") and self.config.dataset.debug_sample_size > 0:
             sample_size = min(self.config.dataset.debug_sample_size, len(file_paths))
             file_paths = file_paths[:sample_size]
             print(f"Debug mode: Using only {sample_size} samples")
-        
+
         # Remove paths with missing reports
         file_paths = [f for f in file_paths if f not in to_remove]
-        
-        print(f"Loaded {len(file_paths)} file paths for split '{split}'")
+
+        # Remove 'CheXpert-v1.0/' prefix from all file paths
+        file_paths = [path.replace('CheXpert-v1.0/', '') for path in file_paths]
+
+        print(f"Loaded {len(file_paths)} file paths for split '{split}' (or entire dataset if no split column)")
         return file_paths, path_to_text
 
+
     def _create_path_to_text_mapping(self) -> Tuple[Dict[str, List[str]], List[str]]:
-        """Create mapping from image paths to report text.
-        
-        Returns:
-            Tuple containing path-to-text mapping and list of paths to remove
-        """
+        """Create mapping from image paths to report text."""
         sentence_lengths = []
         num_sentences = []
         paths_to_remove = []
@@ -153,6 +159,9 @@ class MultimodalPretrainingDataset(Dataset):
                 paths_to_remove.append(row[self.path_col])
                 continue
 
+            # Process the path - remove 'CheXpert-v1.0/' prefix
+            path = row[self.path_col].replace('CheXpert-v1.0/', '')
+
             # Normalize whitespace
             captions = captions.replace("\n", " ")
 
@@ -161,7 +170,7 @@ class MultimodalPretrainingDataset(Dataset):
             caption_segments = splitter.split(captions)
             caption_sentences = [point.split(".") for point in caption_segments]
             caption_sentences = [sent for point in caption_sentences for sent in point]
-
+            
             word_count = 0
             study_sentences = []
             
@@ -196,13 +205,16 @@ class MultimodalPretrainingDataset(Dataset):
                 word_count += len(filtered_tokens)
                 if word_count >= self.max_word_num:
                     break
-
+                
             num_sentences.append(len(study_sentences))
 
             # Store processed sentences or mark for removal
             if study_sentences:
-                path_to_text[row[self.path_col]] = study_sentences
+                path_to_text[path] = study_sentences
+                # path_to_text[row[self.path_col]] = study_sentences
             else:
+                # print(f"DEBUG - No valid path: {path}")
+                # print(f"DEBUG - Original report: {captions[:200]}...")
                 paths_to_remove.append(row[self.path_col])
 
         # Report statistics
@@ -223,6 +235,7 @@ class MultimodalPretrainingDataset(Dataset):
         print(f"Processed {len(path_to_text)} valid reports, removed {len(paths_to_remove)} invalid paths")
 
         return path_to_text, paths_to_remove
+
 
     def get_caption(self, path: str) -> Tuple[dict, int]:
         """Get tokenized caption for an image."""
@@ -253,6 +266,7 @@ class MultimodalPretrainingDataset(Dataset):
 
         return tokens, token_length
 
+
     def get_image(self, img_path: str) -> Image.Image:
         """Load and preprocess an image."""
         try:
@@ -281,6 +295,7 @@ class MultimodalPretrainingDataset(Dataset):
             if self.transform is not None:
                 pil_img = self.transform(pil_img)
             return pil_img
+
 
     def _resize_image(self, img: np.ndarray, target_size: int) -> np.ndarray:
         """Resize image preserving aspect ratio with padding."""
@@ -321,6 +336,7 @@ class MultimodalPretrainingDataset(Dataset):
         
         return padded_img
 
+
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, dict, int, str]:
         """Get an item by index."""
         path = self.file_paths[index]
@@ -330,6 +346,7 @@ class MultimodalPretrainingDataset(Dataset):
         caption_tokens, caption_length = self.get_caption(path)
         
         return img, caption_tokens, caption_length, path
+
 
     def __len__(self) -> int:
         """Get the dataset size."""

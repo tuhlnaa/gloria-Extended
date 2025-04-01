@@ -11,18 +11,12 @@ from torch.utils.data import DataLoader
 PROJECT_ROOT = Path(__file__).parents[1]
 sys.path.append(str(PROJECT_ROOT))
 
-from data.dataset import build_transformation
-from gloria.datasets.pretraining_datasetV2 import MultimodalPretrainingDataset, get_chexpert_multimodal_dataloader, multimodal_collate_fn
+from gloria.datasets.pretraining_datasetV2 import get_chexpert_multimodal_dataloader
 from utils.logging_utils import LoggingManager
 
 
 def set_seed(seed: int = 42) -> None:
-    """
-    Set random seed for reproducibility.
-    
-    Args:
-        seed: Random seed value
-    """
+    """Set random seed for reproducibility."""
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -34,38 +28,13 @@ def set_seed(seed: int = 42) -> None:
 def main():
     set_seed()
     config = OmegaConf.load("./test/usage_pretraining_dataset.yaml")
+    #config = OmegaConf.load("./test/usage_chexpert_5x200_dataset.yaml")
 
     # Print configuration using the logging utility
     LoggingManager.print_config(config, "Configuration")
 
     # Create dataloader
     data_loader, dataset = get_chexpert_multimodal_dataloader(config, split="train")
-
-    # split = "train"
-    # transform = build_transformation(config, "train")
-    
-    # # Create dataset
-    # dataset = MultimodalPretrainingDataset(
-    #     config=config,
-    #     split=split,
-    #     transform=transform,
-    # )
-
-    # if len(dataset) == 0:
-    #     raise ValueError(f"Dataset is empty! No images found. Please check the paths and file formats.")
-    # print(f"Dataset created successfully with {len(dataset)} samples")
-
-    # # Create dataloader with parameters from config
-    # data_loader = DataLoader(
-    #     dataset,
-    #     batch_size=config.model.batch_size,
-    #     shuffle=(split == "train"),
-    #     num_workers=config.dataset.num_workers,
-    #     pin_memory=getattr(config.model, "pin_memory", False),
-    #     drop_last=getattr(config.model, "drop_last", False) if split == "train" else True,
-    #     collate_fn=multimodal_collate_fn
-    # )
-    # print(f"DataLoader created successfully with {len(data_loader)} batches")
 
     # Test loading a few batches
     print("\nTesting batch loading:")
@@ -81,7 +50,7 @@ def main():
         # Print sample caption
         caption_tokens = batch['caption_ids'][0]
         caption_text = dataset.tokenizer.decode(caption_tokens)
-        print(f"  Sample caption: {caption_text[:100]}...")
+        print(f"  Sample caption: {caption_text}")
         
         # Only show first 2 batches
         if batch_idx >= 1:
@@ -128,9 +97,9 @@ Loaded dataframe with 223462 rows and columns:
 
 Caption file ./CheXpert-Plus/captions_df_chexpert_plus_240401.pickle does not exist or rebuild forced. Creating captions...
 Processing reports: 100%|███████████████████████████████████████████████████████████████████| 191071/191071 [00:19<00:00, 9981.76it/s]
-Sentence lengths: min=2, mean=15.86, max=112 [p5=5.00, p95=29.00]
-Sentences per report: min=1, mean=1.03, max=3 [p5=1.00, p95=1.00]
-Processed 191071 valid reports, removed 0 invalid paths
+Sentence lengths: min=2, mean=12.43, max=90 [p5=3.00, p95=26.00]
+Sentences per report: min=0, mean=1.09, max=3 [p5=1.00, p95=2.00]
+Processed 190927 valid reports, removed 144 invalid paths
 Saved captions to: ./CheXpert-Plus/captions_df_chexpert_plus_240401.pickle
 Loaded 190869 file paths for split 'train'
 
@@ -143,19 +112,20 @@ Batch 1:
   Caption IDs shape: torch.Size([16, 97])
   Token type IDs shape: torch.Size([16, 97])
   Attention mask shape: torch.Size([16, 97])
-  Caption lengths: tensor([29, 26, 24, 22, 22, 21, 21, 21, 20, 20, 19, 19, 18, 17, 14,  9])
-  Example path: ./CheXpert-Plus/train/patient15104/study16/view1_frontal.jpg
-  Sample caption: [CLS] narrative radiographic examination of the chest 2 8 2010 clinical history 68 years of age male...
-
+  Caption lengths: tensor([29, 27, 21, 19, 18, 17, 17, 17, 16, 15, 14, 14, 14, 12,  9,  9])
+  Example path: .train/patient37393/study9/view1_frontal.jpg
+  Sample caption: [CLS] one view upright chest radiograph with poststernotomy chest redemonstrates right upper lobe volume loss and right upper lobe opacity 
+  [SEP] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD]
 Batch 2:
   Images shape: torch.Size([16, 3, 224, 224])
   Caption IDs shape: torch.Size([16, 97])
   Token type IDs shape: torch.Size([16, 97])
   Attention mask shape: torch.Size([16, 97])
-  Caption lengths: tensor([32, 31, 26, 25, 23, 22, 21, 20, 17, 16, 15, 15, 15, 13,  9,  8])
-  Example path: ./CheXpert-Plus/train/patient38792/study6/view1_frontal.jpg
-  Sample caption: [CLS] narrative radiographic examination of the chest post needle biopsy 12 4 19 hours 11 31 hours c...
-...
+  Caption lengths: tensor([34, 26, 25, 24, 24, 22, 20, 18, 15, 15, 14, 13, 12, 11, 11,  8])
+  Example path: .train/patient23897/study1/view1_frontal.jpg
+  Sample caption: [CLS] frontal and lateral views of the chest demonstrate opacities in the bilateral lower lobes left greater than right concerning for consolidation for which superimposed infection cannot be excluded 
+  [SEP] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD] [PAD]
+
 
 # Caption IDs:
 These are numerical representations of text tokens after being processed by BERT's tokenizer. 
@@ -175,4 +145,25 @@ This refers to the actual number of tokens in each caption before padding.
 
 # Sample caption:
 This is the actual text from the radiology report after being tokenized and then decoded back to text for display purposes. 
+
+### 1. `[CLS]` - Classification Token
+- Placed at the beginning of every input sequence
+- Used to aggregate sequence-level information
+- For classification tasks, the final hidden state of this token is used as the aggregate representation
+- In your multimodal learning setup, this token likely helps the model relate image features to text features
+
+### 2. `[SEP]` - Separator Token
+- Marks the boundary between different segments of text
+- In your case, it signals the end of the actual report text
+
+### 3. `[PAD]` - Padding Token
+- Used to make all sequences in a batch the same length
+- Notice in your code that all captions are padded to a fixed length (97 tokens as configured in the YAML)
+- The model's attention mechanism ignores these tokens through the attention mask
+
+Here's what's happening:
+1. The raw text from reports is processed and tokenized
+2. Special tokens `[CLS]` and `[SEP]` are added
+3. The sequence is padded to a fixed length with `[PAD]` tokens
+4. The decoded output includes all of these special tokens
 """

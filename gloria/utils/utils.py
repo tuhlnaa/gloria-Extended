@@ -130,7 +130,7 @@ FONT_MAX = 50
 def drawCaption(convas, vis_size, sents, off1=2, off2=2):
 
     img_txt = Image.fromarray(convas)
-    fnt = ImageFont.truetype("./FreeMono.ttf", 45)
+    fnt = ImageFont.truetype("./assets/FreeMono.ttf", 45)
     d = ImageDraw.Draw(img_txt)
     sentence_list = []
     word_index_list = []
@@ -249,11 +249,11 @@ def build_attention_images(
         word_level_attn = []
 
         for j in range(num_attn):
-
             one_map = attn[j]
+
             if (vis_size // att_sze) > 1:
                 one_map = skimage.transform.pyramid_expand(
-                    one_map, sigma=20, upscale=vis_size // att_sze, multichannel=True
+                    one_map, sigma=20, upscale=vis_size // att_sze, channel_axis=2  # Replace multichannel=True with channel_axis=2
                 )
 
             word_level_attn.append(one_map)

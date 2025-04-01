@@ -303,9 +303,10 @@ class GLoRIA(nn.Module):
         img_set, _ = utils.build_attention_images(
             imgs,
             attn_maps,
-            max_word_num=self.config.data.text.word_num,
-            nvis=self.config.train.nvis,
-            rand_vis=self.config.train.rand_vis,
+            max_word_num=None,
+            #max_word_num=self.config.data.text.word_num,  # TODO: remove
+            nvis=self.config.misc.nvis,
+            rand_vis=self.config.misc.rand_vis,
             sentences=sents,
         )
 
