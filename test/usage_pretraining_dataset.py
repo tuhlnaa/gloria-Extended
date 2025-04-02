@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 PROJECT_ROOT = Path(__file__).parents[1]
 sys.path.append(str(PROJECT_ROOT))
 
-from gloria.datasets.pretraining_datasetV2 import get_chexpert_multimodal_dataloader
+from data.pretraining_datasetV2 import get_chexpert_multimodal_dataloader
 from utils.logging_utils import LoggingManager
 
 

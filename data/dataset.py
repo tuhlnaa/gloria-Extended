@@ -383,4 +383,4 @@ def get_chexpert_dataloader(
     )
     print(f"DataLoader created successfully with {len(data_loader)} batches")
     
-    return data_loader
+    return data_loader, dataset

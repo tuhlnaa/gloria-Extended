@@ -19,7 +19,7 @@ from nltk.tokenize import RegexpTokenizer
 from data.dataset import build_transformation
 
 
-class MultimodalPretrainingDataset(Dataset):
+class CheXpertMultimodalDataset(Dataset):
     """Dataset for multimodal pretraining with medical images and reports."""
 
     def __init__(
@@ -427,7 +427,7 @@ def get_chexpert_multimodal_dataloader(
         transform = build_transformation(config, split)
     
     # Create dataset
-    dataset = MultimodalPretrainingDataset(
+    dataset = CheXpertMultimodalDataset(
         config=config,
         split=split,
         transform=transform,
@@ -447,6 +447,5 @@ def get_chexpert_multimodal_dataloader(
         collate_fn=multimodal_collate_fn
     )
     print(f"DataLoader created successfully with {len(data_loader)} batches")
-
 
     return data_loader, dataset

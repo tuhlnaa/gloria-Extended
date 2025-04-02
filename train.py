@@ -11,8 +11,9 @@ from torch.utils.data import DataLoader
 from flash.core.optimizers import LinearWarmupCosineAnnealingLR
 
 from configs.config import parse_args, save_config
-from data.dataset import get_chexpert_dataloader#, get_motion_segmentation_dataloader
-from gloria.datasets.pretraining_datasetV2 import get_chexpert_multimodal_dataloader
+from data.utils import dataset_factory
+from data.dataset import get_chexpert_dataloader
+from data.pretraining_datasetV2 import get_chexpert_multimodal_dataloader
 from gloria.engine.trainer import Trainer
 from gloria.engine.validator import Validator
 from gloria.models import pytorch
@@ -69,12 +70,9 @@ def setup_training(config: OmegaConf) -> Tuple[nn.Module, torch.device, Dict[str
     # Set random seed for reproducibility
     set_seed(config.misc.seed)
 
-    # Setup data loaders
-    # train_loader = get_chexpert_dataloader(config, split="train", view_type="Frontal")
-    # val_loader = get_chexpert_dataloader(config, split="valid", view_type="Frontal")
-    
-    train_loader, _ = get_chexpert_multimodal_dataloader(config, split="train")
-    val_loader, _ = get_chexpert_multimodal_dataloader(config, split="valid")
+    # Setup data loaders using the dataset factory
+    train_loader, _ = dataset_factory.get_dataloader(config, split="train")
+    val_loader, _ = dataset_factory.get_dataloader(config, split="valid")
 
     # Initialize model
     model_class = pytorch.PYTORCH_MODULES[config.phase.lower()]

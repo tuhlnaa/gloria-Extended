@@ -1,312 +1,352 @@
-"""Adapted from: https://github.com/mrlibw/ControlGAN"""
+"""
+Visualization utilities for GLoRIA: A Multimodal Global-Local Representation Learning Framework
+for Label-efficient Medical Image Recognition.
 
-import numpy as np
+Adapted from: https://github.com/mrlibw/ControlGAN
+"""
 import torch
-import torch.nn as nn
+import torch.nn.functional as F
+import numpy as np
 import skimage.transform
 
-
+from matplotlib import cm
 from PIL import Image, ImageDraw, ImageFont
+from typing import List, Tuple, Dict, Optional, Union, Any
 
 
-def normalize(similarities, method="norm"):
+def normalize_similarities(similarities: np.ndarray, method: str = "norm") -> np.ndarray:
+    """
+    Normalize similarity scores using different methods.
 
+    Args:
+        similarities: Array of similarity scores to normalize
+        method: Normalization method, either "norm" or "standardize"
+
+    Returns:
+        Normalized similarity scores
+    """
     if method == "norm":
-        return (similarities - similarities.mean(axis=0)) / (similarities.std(axis=0))
+        return (similarities - similarities.mean(axis=0)) / (similarities.std(axis=0) + 1e-8)
     elif method == "standardize":
-        return (similarities - similarities.min(axis=0)) / (
-            similarities.max(axis=0) - similarities.min(axis=0)
-        )
+        min_vals = similarities.min(axis=0)
+        max_vals = similarities.max(axis=0)
+        denominator = max_vals - min_vals
+        # Avoid division by zero
+        denominator = np.where(denominator > 0, denominator, 1)
+        return (similarities - min_vals) / denominator
     else:
-        raise Exception("normalizing method not implemented")
+        raise ValueError(f"Unsupported normalization method: {method}")
 
 
-# For visualization ################################################
-COLOR_DIC = {
-    0: [128, 64, 128],
-    1: [244, 35, 232],
-    2: [70, 70, 70],
-    3: [102, 102, 156],
-    4: [190, 153, 153],
-    5: [153, 153, 153],
-    6: [250, 170, 30],
-    7: [220, 220, 0],
-    8: [107, 142, 35],
-    9: [152, 251, 152],
-    10: [70, 130, 180],
-    11: [220, 20, 60],
-    12: [255, 0, 0],
-    13: [0, 0, 142],
-    14: [119, 11, 32],
-    15: [0, 60, 100],
-    16: [0, 80, 100],
-    17: [0, 0, 230],
-    18: [0, 0, 70],
-    19: [0, 0, 0],
-    20: [128, 64, 128],
-    21: [244, 35, 232],
-    22: [70, 70, 70],
-    23: [102, 102, 156],
-    24: [190, 153, 153],
-    25: [153, 153, 153],
-    26: [250, 170, 30],
-    27: [220, 220, 0],
-    28: [107, 142, 35],
-    29: [152, 251, 152],
-    30: [70, 130, 180],
-    31: [220, 20, 60],
-    32: [255, 0, 0],
-    33: [0, 0, 142],
-    34: [119, 11, 32],
-    35: [0, 60, 100],
-    36: [0, 80, 100],
-    37: [0, 0, 230],
-    38: [0, 0, 70],
-    39: [0, 0, 0],
-    40: [128, 64, 128],
-    41: [244, 35, 232],
-    42: [70, 70, 70],
-    43: [102, 102, 156],
-    44: [190, 153, 153],
-    45: [153, 153, 153],
-    46: [250, 170, 30],
-    47: [220, 220, 0],
-    48: [107, 142, 35],
-    49: [152, 251, 152],
-    50: [70, 130, 180],
-    51: [220, 20, 60],
-    52: [255, 0, 0],
-    53: [0, 0, 142],
-    54: [119, 11, 32],
-    55: [0, 60, 100],
-    56: [0, 80, 100],
-    57: [0, 0, 230],
-    58: [0, 0, 70],
-    59: [0, 0, 0],
-    60: [128, 64, 128],
-    61: [244, 35, 232],
-    62: [70, 70, 70],
-    63: [102, 102, 156],
-    64: [190, 153, 153],
-    65: [153, 153, 153],
-    66: [250, 170, 30],
-    67: [220, 220, 0],
-    68: [107, 142, 35],
-    69: [152, 251, 152],
-    70: [70, 130, 180],
-    71: [220, 20, 60],
-    72: [255, 0, 0],
-    73: [0, 0, 142],
-    74: [119, 11, 32],
-    75: [0, 60, 100],
-    76: [0, 80, 100],
-    77: [0, 0, 230],
-    78: [0, 0, 70],
-    79: [0, 0, 0],
-    80: [128, 64, 128],
-    81: [244, 35, 232],
-    82: [70, 70, 70],
-    83: [102, 102, 156],
-    84: [190, 153, 153],
-    85: [153, 153, 153],
-    86: [250, 170, 30],
-    87: [220, 220, 0],
-    88: [107, 142, 35],
-    89: [152, 251, 152],
-    90: [70, 130, 180],
-    91: [220, 20, 60],
-    92: [255, 0, 0],
-    93: [0, 0, 142],
-    94: [119, 11, 32],
-    95: [0, 60, 100],
-    96: [0, 80, 100],
-    97: [0, 0, 230],
-    98: [0, 0, 70],
-    99: [0, 0, 0],
-}
-FONT_MAX = 50
+def generate_color_dict(num_colors: int = 100) -> Dict[int, List[int]]:
+    """Generate a dictionary of colors for visualization."""
+    color_dict = {}
+    
+    # Base colors that repeat with some variation
+    base_colors = [
+        [128, 64, 128],   # purple-blue
+        [244, 35, 232],   # pink
+        [70, 70, 70],     # dark gray
+        [102, 102, 156],  # blue-gray
+        [190, 153, 153],  # pink-gray
+        [153, 153, 153],  # gray
+        [250, 170, 30],   # orange
+        [220, 220, 0],    # yellow
+        [107, 142, 35],   # olive green
+        [152, 251, 152],  # light green
+        [70, 130, 180],   # steel blue
+        [220, 20, 60],    # crimson
+        [255, 0, 0],      # red
+        [0, 0, 142],      # navy
+        [119, 11, 32],    # burgundy
+        [0, 60, 100],     # dark blue
+        [0, 80, 100],     # teal blue
+        [0, 0, 230],      # blue
+        [0, 0, 70],       # dark navy
+        [0, 0, 0]         # black
+    ]
+    
+    for i in range(num_colors):
+        color_dict[i] = base_colors[i % len(base_colors)]
+    
+    return color_dict
 
 
-def drawCaption(convas, vis_size, sents, off1=2, off2=2):
+# Visualization constants
+FONT_MAX_SIZE = 50
+DEFAULT_FONT_PATH = "./assets/FreeMono.ttf"
+DEFAULT_FONT_SIZE = 45
 
-    img_txt = Image.fromarray(convas)
-    fnt = ImageFont.truetype("./assets/FreeMono.ttf", 45)
-    d = ImageDraw.Draw(img_txt)
-    sentence_list = []
+# Generate color dictionary
+COLOR_DICT = generate_color_dict()
+
+
+def draw_caption(
+        canvas: np.ndarray, 
+        vis_size: int, 
+        sentences: List[List[str]], 
+        font_path: str = DEFAULT_FONT_PATH,
+        font_size: int = DEFAULT_FONT_SIZE,
+        offset_x: int = 2, 
+        offset_y: int = 2
+    ) -> Tuple[Image.Image, List[List[str]], List[List[int]]]:
+    """
+    Draw text captions on the canvas.
+    
+    Args:
+        canvas: The image canvas to draw on
+        vis_size: Visualization size for each attention map
+        sentences: List of tokenized sentences
+        font_path: Path to the font file
+        font_size: Font size to use
+        offset_x: Horizontal offset between words
+        offset_y: Vertical offset for padding
+    
+    Returns:
+        Tuple containing:
+        - The image with drawn captions
+        - The processed sentences
+        - List of word indices for each sentence
+    """
+    img_txt = Image.fromarray(canvas)
+    draw = ImageDraw.Draw(img_txt)
+    
+    try:
+        font = ImageFont.truetype(font_path, font_size)
+    except IOError:
+        # Fallback to default font if the specified one is not found
+        font = ImageFont.load_default()
+        print(f"Warning: Font {font_path} not found, using default font")
+        
     word_index_list = []
-    for i in range(len(sents)):
-        # cap = captions[i].data.cpu().numpy()
-        cap = [w for w in sents[i] if not w.startswith("[")]
-        cap = ["[CLS]"] + cap
-        sentence = []
-        word_index = []
-        word = ""
-        for j in range(len(cap)):
-
-            word += sents[i][j].strip("#")
-
-            if j == (len(cap)) - 1:
-                word_index.append(j)
-            else:
-                if sents[i][j + 1].startswith("#"):
-                    continue
-                else:
-                    word_index.append(j)
-
-            d.text(
-                ((len(sentence) + off1) * (vis_size + off2), i * FONT_MAX),
-                "%s" % (word),
-                font=fnt,
-                fill=(255, 255, 255, 255),
-            )
-            sentence.append(word)
-            word = ""
-
-        sentence_list.append(sentence)
-        word_index_list.append(word_index)
-
-    return img_txt, sents, word_index_list
+    
+    for i, tokens in enumerate(sentences):
+        # Filter out special tokens for display purposes
+        display_tokens = [w for w in tokens if not w.startswith("[")]
+        display_tokens = ["[CLS]"] + display_tokens
+        
+        word_indices = []
+        current_word = ""
+        
+        for j, token in enumerate(tokens):
+            # Handle WordPiece tokenization (tokens starting with ##)
+            current_word += token.strip("#")
+            
+            # Check if this is the end of a word or the last token
+            is_word_end = (j == len(tokens) - 1) or not tokens[j + 1].startswith("#") if j < len(tokens) - 1 else True
+            
+            if is_word_end:
+                word_indices.append(j)
+                # Draw the complete word
+                draw.text(
+                    ((len(word_indices) - 1 + offset_x) * (vis_size + offset_y), i * FONT_MAX_SIZE),
+                    current_word,
+                    font=font,
+                    fill=(255, 255, 255, 255)
+                )
+                current_word = ""
+        
+        word_index_list.append(word_indices)
+    
+    return img_txt, sentences, word_index_list
 
 
 def build_attention_images(
-    real_imgs,
-    attn_maps,
-    max_word_num=None,  # TODO: remove
-    nvis=8,
-    rand_vis=False,
-    sentences=None,
-):
-
-    att_sze = attn_maps[0].shape[-1]
-    batch_size = real_imgs.shape[0]
-
+        images: torch.Tensor,
+        attention_maps: List[torch.Tensor],
+        sentences: List[List[str]],
+        num_visualizations: int = 8,
+        random_selection: bool = False,
+        use_rainbow: bool = True,
+    ) -> Tuple[Optional[np.ndarray], List[List[str]]]:
+    """
+    Build a comprehensive visualization of attention maps for multimodal models.
+    
+    This function creates a visualization that shows how the model attends to different
+    parts of an image when processing text tokens. For each input image, the output
+    consists of three vertically stacked rows:
+    
+    1. Text row: Displays the tokens/words of the corresponding text
+    2. Raw attention maps row: Shows the unmodified attention values which may appear
+       black early in training or when attention values are very low
+    3. Merged attention maps row: Shows the attention maps overlaid on the original image,
+       making patterns more visible
+    
+    The first column always shows the original image, the second column shows the maximum
+    attention across all tokens, and subsequent columns show attention for individual tokens.
+    
+    Args:
+        images: Tensor of input images [batch_size, channels, height, width]
+        attention_maps: List of attention maps from the model, typically from
+                        cross-attention layers
+        sentences: List of tokenized sentences corresponding to each image
+        num_visualizations: Maximum number of examples to include in the visualization
+        random_selection: If True, randomly select images; if False, use the first N images
+        use_rainbow: If True, use matplotlib's rainbow colormap for attention visualization;
+                    if False, use the original grayscale visualization
+    """
+    # Extract attention map size
+    attention_size = attention_maps[0].shape[-1]
+    batch_size = images.shape[0]
+    
+    # Count actual words (excluding special tokens and WordPiece continuations)
     word_counts = []
     for sent in sentences:
-        sent = [s for s in sent if (not s.startswith("#")) and (not s.startswith("["))]
-        word_counts.append(len(sent) + 1)
-    max_word_num = max(word_counts)
-
-    if rand_vis:
-        loop_idx = np.random.choice(len(real_imgs), size=nvis, replace=False)
+        words = [s for s in sent if (not s.startswith("#")) and (not s.startswith("["))]
+        word_counts.append(len(words) + 1)  # +1 for [CLS]
+    max_word_count = max(word_counts)
+    
+    # Select which images to visualize
+    if random_selection:
+        visualization_indices = np.random.choice(len(images), size=min(num_visualizations, len(images)), replace=False)
     else:
-        loop_idx = np.arange(nvis)
-
-    if (att_sze == 17) or (att_sze == 19):
-        vis_size = att_sze * 16
+        visualization_indices = np.arange(min(num_visualizations, len(images)))
+    
+    # Determine visualization size
+    if attention_size in (17, 19):
+        vis_size = attention_size * 16
     else:
-        vis_size = real_imgs.size(2)
-
-    text_convas = np.ones(
-        [batch_size * FONT_MAX, (max_word_num + 2) * (vis_size + 2), 3], dtype=np.uint8
+        vis_size = images.size(2)
+    
+    # Create text canvas
+    text_canvas = np.ones(
+        [batch_size * FONT_MAX_SIZE, (max_word_count + 2) * (vis_size + 2), 3], 
+        dtype=np.uint8
     )
-
-    for i in range(max_word_num):
-        istart = (i + 2) * (vis_size + 2)
-        iend = (i + 3) * (vis_size + 2)
-        text_convas[:, istart:iend, :] = COLOR_DIC[i]
-
-    real_imgs = nn.Upsample(size=(vis_size, vis_size), mode="bilinear")(real_imgs)
-    # [-1, 1] --> [0, 1]
-    real_imgs.add_(1).div_(2).mul_(255)
-    real_imgs = real_imgs.data.numpy()
-    # b x c x h x w --> b x h x w x c
-    real_imgs = np.transpose(real_imgs, (0, 2, 3, 1))
-    pad_sze = real_imgs.shape
-    middle_pad = np.zeros([pad_sze[2], 2, 3])
-    post_pad = np.zeros([pad_sze[1], pad_sze[2], 3])
-
-    # batch x seq_len x 17 x 17 --> batch x 1 x 17 x 17
-    seq_len = max_word_num
-    img_set = []
-    num = nvis  # len(attn_maps)
-
-    text_map, sentences, word_index_list = drawCaption(text_convas, vis_size, sentences)
+    
+    # Color-code each word position
+    for i in range(max_word_count):
+        start_x = (i + 2) * (vis_size + 2)
+        end_x = (i + 3) * (vis_size + 2)
+        text_canvas[:, start_x:end_x, :] = COLOR_DICT[i]
+    
+    # Resize images to visualization size
+    resized_images = F.interpolate(images, size=(vis_size, vis_size), mode="bilinear", align_corners=False)
+    
+    # Convert images from [-1, 1] to [0, 255] for visualization
+    resized_images = ((resized_images + 1) / 2 * 255).clamp(0, 255).cpu().numpy()
+    resized_images = np.transpose(resized_images, (0, 2, 3, 1))
+    
+    # Create padding elements
+    pad_shape = resized_images.shape
+    middle_pad = np.zeros([pad_shape[2], 2, 3])
+    post_pad = np.zeros([pad_shape[1], pad_shape[2], 3])
+    
+    # Draw captions and get word indices
+    text_map, processed_sentences, word_index_list = draw_caption(text_canvas, vis_size, sentences)
     text_map = np.asarray(text_map).astype(np.uint8)
 
-    bUpdate = 1
-    for i in loop_idx:
+    rainbow_cmap = cm.get_cmap('rainbow') # 🛠️
 
-        attn = attn_maps[i].cpu().view(1, -1, att_sze, att_sze)
-        # --> 1 x 1 x 17 x 17
-        attn_max = attn.max(dim=1, keepdim=True)
-        attn = torch.cat([attn_max[0], attn], 1)
-
-        attn = attn.view(-1, 1, att_sze, att_sze)
-        attn = attn.repeat(1, 3, 1, 1).data.numpy()
-        # n x c x h x w --> n x h x w x c
+    img_set = []
+    for idx in visualization_indices:
+        # Get and process attention maps for this image
+        attn = attention_maps[idx].cpu().view(1, -1, attention_size, attention_size)
+        
+        # Add maximum attention across all words
+        attn_max, _ = attn.max(dim=1, keepdim=True)
+        attn = torch.cat([attn_max, attn], 1)
+        
+        # Reshape and repeat for visualization
+        attn = attn.view(-1, 1, attention_size, attention_size).repeat(1, 3, 1, 1).detach().numpy()
         attn = np.transpose(attn, (0, 2, 3, 1))
-        num_attn = attn.shape[0]
-        #
-        img = real_imgs[i]
-        lrI = img
-        row = [lrI, middle_pad]
+        num_attn_maps = attn.shape[0]
+        
+        # Get the image
+        img = resized_images[idx]
+        
+        # Initialize visualization rows
+        row = [img, middle_pad]
         row_merge = [img, middle_pad]
-        row_beforeNorm = []
-        minVglobal, maxVglobal = 1, 0
-
-        # including first max attention index
-        word_end_list = [0] + [idx + 1 for idx in word_index_list[i]]
+        row_before_norm = []
+        
+        # Track global min/max for normalization
+        min_val_global, max_val_global = 1, 0
+        
+        # Process word-level attention
+        word_end_indices = [0] + [idx + 1 for idx in word_index_list[idx]]
         word_level_attn = []
-
-        for j in range(num_attn):
-            one_map = attn[j]
-
-            if (vis_size // att_sze) > 1:
-                one_map = skimage.transform.pyramid_expand(
-                    one_map, sigma=20, upscale=vis_size // att_sze, channel_axis=2  # Replace multichannel=True with channel_axis=2
+        
+        for j in range(num_attn_maps):
+            attn_map = attn[j]
+            
+            # Upscale attention map if needed
+            if (vis_size // attention_size) > 1:
+                attn_map = skimage.transform.pyramid_expand(
+                    attn_map, sigma=20, upscale=vis_size // attention_size, channel_axis=2
                 )
-
-            word_level_attn.append(one_map)
-            if j in word_end_list:
-                one_map = np.mean(word_level_attn, axis=0)
+            
+            word_level_attn.append(attn_map)
+            
+            # Process only at word boundaries
+            if j in word_end_indices:
+                attn_map = np.mean(word_level_attn, axis=0)
                 word_level_attn = []
             else:
                 continue
+            
+            row_before_norm.append(attn_map)
+            
+            # Update global min/max
+            min_val = attn_map.min()
+            max_val = attn_map.max()
+            min_val_global = min(min_val_global, min_val)
+            max_val_global = max(max_val_global, max_val)
+        
+        # Process each word position
+        for j in range(max_word_count + 1):
+            if j < len(row_before_norm):
+                # Normalize and scale to [0, 255]
+                attn_map = row_before_norm[j]
+                normalized_map = (attn_map - min_val_global) / (max_val_global - min_val_global + 1e-8) 
 
-            row_beforeNorm.append(one_map)
-            minV = one_map.min()
-            maxV = one_map.max()
+                if use_rainbow:
+                    # Apply rainbow colormap to the normalized values
+                    grayscale = np.mean(normalized_map, axis=2)  # Use a weighted average
+                    colored_map = rainbow_cmap(grayscale)[:, :, :3]
+                    # Convert to uint8 for visualization
+                    colored_map = (colored_map * 255).astype(np.uint8)
 
-            if minVglobal > minV:
-                minVglobal = minV
-            if maxVglobal < maxV:
-                maxVglobal = maxV
-
-        for j in range(seq_len + 1):
-            if j < len(row_beforeNorm):
-                one_map = row_beforeNorm[j]
-                one_map = (one_map - minVglobal) / (maxVglobal - minVglobal)
-                one_map *= 255
-
-                PIL_im = Image.fromarray(np.uint8(img))
-                PIL_att = Image.fromarray(np.uint8(one_map))
+                # Create attention overlay
+                img_pil = Image.fromarray(np.uint8(img))
+                attn_pil = Image.fromarray(np.uint8(normalized_map * 255))
                 merged = Image.new("RGBA", (vis_size, vis_size), (0, 0, 0, 0))
-                mask = Image.new("L", (vis_size, vis_size), (210))
-                merged.paste(PIL_im, (0, 0))
-                merged.paste(PIL_att, (0, 0), mask)
+                mask = Image.new("L", (vis_size, vis_size), 210)  # Semi-transparent mask
+                
+                merged.paste(img_pil, (0, 0))
+                merged.paste(attn_pil, (0, 0), mask)
                 merged = np.array(merged)[:, :, :3]
             else:
-                one_map = post_pad
+                attn_map = post_pad
                 merged = post_pad
 
-            row.append(one_map)
+            if use_rainbow:
+                row.append(colored_map)
+            else:
+                row.append(attn_map)
+
             row.append(middle_pad)
             row_merge.append(merged)
             row_merge.append(middle_pad)
 
         row = np.concatenate(row, 1)
         row_merge = np.concatenate(row_merge, 1)
-        txt = text_map[i * FONT_MAX : (i + 1) * FONT_MAX]
-
+        txt = text_map[idx * FONT_MAX_SIZE : (idx + 1) * FONT_MAX_SIZE]
+        
+        # Check if dimensions match
         if txt.shape[1] != row.shape[1]:
-            print("txt", txt.shape, "row", row.shape)
-            bUpdate = 0
-            break
+            print(f"Dimension mismatch: txt {txt.shape}, row {row.shape}")
+            return None, processed_sentences
+        
+        # Combine text and visualization
         row = np.concatenate([txt, row, row_merge], 0)
         img_set.append(row)
-    if bUpdate:
-        img_set = np.concatenate(img_set, 0)
-        img_set = img_set.astype(np.uint8)
-        return img_set, sentences
-    else:
-        return None
+    
+    # Combine all examples
+    try:
+        combined_img = np.concatenate(img_set, 0)
+        return combined_img.astype(np.uint8), processed_sentences
+    except ValueError:
+        print("Failed to concatenate visualization images")
+        return None, processed_sentences
+    

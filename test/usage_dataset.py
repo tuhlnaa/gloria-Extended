@@ -32,7 +32,7 @@ def main():
     LoggingManager.print_config(config, "Configuration")
 
     # Create dataloader
-    data_loader = get_chexpert_dataloader(config, split="train", view_type="Frontal")
+    data_loader, _ = get_chexpert_dataloader(config, split="train")
 
     # Iterate through batches
     for batch_idx, (images, labels) in enumerate(data_loader):
