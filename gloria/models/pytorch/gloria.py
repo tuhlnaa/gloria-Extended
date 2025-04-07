@@ -55,7 +55,7 @@ class GLoRIAModel:
     def train_epoch(self, train_loader, epoch: int) -> Dict[str, float]:
         """Train the model for one epoch."""
         self.model.train()
-        epoch_loss = 0.0
+        train_loss = 0.0
         
         for batch_idx, batch in enumerate(train_loader):
             # Move batch to device
@@ -65,19 +65,19 @@ class GLoRIAModel:
             
             # Forward pass and loss calculation
             img_emb_local, img_emb_global, text_emb_local, text_emb_global, sents = self.model(batch)
-            loss, attn_maps = self.model.compute_loss(
+            total_loss, attn_maps = self.model.compute_loss(
                 img_emb_local, img_emb_global, text_emb_local, text_emb_global, sents
             )
             
             # Backward pass
-            loss.backward()
+            total_loss.backward()
 
             # Gradient clipping if needed
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.config.optimizer.clip_grad)
 
             self.optimizer.step()
             
-            epoch_loss += loss.item()
+            train_loss += total_loss.item()
             
             # Visualize attention maps periodically if configured
             visualization_interval = self.config.misc.visualization_interval
@@ -89,11 +89,11 @@ class GLoRIAModel:
 
             # Print progress
             if batch_idx % 10 == 0:
-                print(f"Train Epoch: {epoch} [{batch_idx}/{len(train_loader)}]\tLoss: {loss.item():.6f}")
+                print(f"Train Epoch: {epoch} [{batch_idx}/{len(train_loader)}]\tLoss: {total_loss.item():.6f}")
         
         # Calculate epoch metrics
         metrics = {
-            "train_loss": epoch_loss / len(train_loader)
+            "train_loss": train_loss / len(train_loader)
         }
         
         print(f"Train metrics - Loss: {metrics['train_loss']:.4f}")
@@ -121,11 +121,11 @@ class GLoRIAModel:
                 
                 # Forward pass and loss calculation
                 img_emb_local, img_emb_global, text_emb_local, text_emb_global, sents = self.model(batch)
-                loss, _ = self.model.compute_loss(
+                total_loss, _ = self.model.compute_loss(
                     img_emb_local, img_emb_global, text_emb_local, text_emb_global, sents
                 )
                 
-                val_loss += loss.item()
+                val_loss += total_loss.item()
         
         # Calculate validation metrics
         metrics = {

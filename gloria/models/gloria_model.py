@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
+from collections import namedtuple
 from sklearn import metrics
 from typing import Dict, List, Tuple, Union, Optional
 
@@ -126,26 +127,40 @@ class GLoRIA(nn.Module):
             sents: Tokenized sentences
             
         Returns:
-            Tuple containing:
-                - total_loss: Combined weighted loss
-                - attn_maps: Attention maps for visualization
+            LossResult: A namedtuple containing all loss components and attention maps
         """
+        # Create a namedtuple to store all results
+        LossResult = namedtuple('LossResult', [
+            'total_loss', 'attn_maps', 'global_loss', 'local_loss',
+            'local_loss_image_to_text', 'local_loss_text_to_image',
+            'global_loss_image_to_text', 'global_loss_text_to_image'
+        ])
+
         # Compute local loss (between image regions and words)
-        local_loss_i2t, local_loss_t2i, attn_maps = self._compute_local_loss(
+        local_loss_image_to_text, local_loss_text_to_image, attn_maps = self._compute_local_loss(
             img_emb_local, text_emb_local, sents
         )
         
         # Compute global loss (between global image and text embeddings)
-        global_loss_i2t, global_loss_t2i = self._compute_global_loss(
+        global_loss_image_to_text, global_loss_text_to_image = self._compute_global_loss(
             img_emb_global, text_emb_global
         )
         
         # Combine losses with weights
-        local_loss = (local_loss_i2t + local_loss_t2i) * self.local_loss_weight
-        global_loss = (global_loss_i2t + global_loss_t2i) * self.global_loss_weight
+        local_loss = (local_loss_image_to_text + local_loss_text_to_image) * self.local_loss_weight
+        global_loss = (global_loss_image_to_text + global_loss_text_to_image) * self.global_loss_weight
         total_loss = local_loss + global_loss
         
-        return total_loss, attn_maps
+        return LossResult(
+            total_loss=total_loss,
+            attn_maps=attn_maps,
+            global_loss=global_loss,
+            local_loss=local_loss,
+            local_loss_image_to_text=local_loss_image_to_text,
+            local_loss_text_to_image=local_loss_text_to_image,
+            global_loss_image_to_text=global_loss_image_to_text,
+            global_loss_text_to_image=global_loss_text_to_image
+        )
     
 
     def _compute_local_loss(self, img_emb_local, text_emb_local, sents):

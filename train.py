@@ -176,7 +176,7 @@ def run_training_pipeline(config: OmegaConf) -> dict:
         train_metrics = model.train_epoch(dataloaders['train'], epoch)
         train_metrics.update({"learning_rate": model.optimizer.param_groups[0]['lr']})
 
-        if epoch % 3 == 0: 
+        if epoch % 1 == 0: 
             model.scheduler["scheduler"].step(train_metrics["train_loss"])
 
         # Log metrics

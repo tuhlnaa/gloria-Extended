@@ -12,7 +12,7 @@ phase: "pretrain"
 dataset:
   dataset_name: "chexpert_multimodal"  # Name of the dataset to use
   num_workers: 0                       # Number of data loading workers
-  fraction: 0.01 # 1.0  # 🛠️           # Train split ratio
+  fraction: 0.05 # 1.0  # 🛠️           # Train split ratio
   image: 
     imsize: 256                        # Target image size
   text: 
@@ -42,7 +42,7 @@ transforms:
 
 # Model parameters
 model:
-  batch_size: 64                  # Input batch size for training
+  batch_size: 48                  # Input batch size for training
   resume: null                    # Resume full model and optimizer state from checkpoint
   pretrained: true                # Use pretrained model
   vision:
@@ -81,7 +81,7 @@ criterion:
 # Learning rate schedule parameters
 lr_scheduler:
   name: 'plateau'
-  epochs: 7                       # Number of epochs to train
+  epochs: 50                       # Number of epochs to train
   learning_rate: 1e-4 # 1.0e-3 # 🛠️      # Learning rate for the optimizer
   warmup_ratio: 0.1               # Ratio of warmup steps
   patience: 7                     # Early stopping patience
@@ -114,7 +114,7 @@ logging:
     task_type: "training"         # ClearML task type
     tags: []                      # List of tags for ClearML task
   
-  experiment_name: "experiment8"  # Name for the experiment
+  experiment_name: "experiment10"  # Name for the experiment
 
 
 # Miscellaneous parameters
@@ -123,6 +123,6 @@ misc:
   validation_freq: 100            # Frequency of validation (iterations)
   log_freq: 100                   # Frequency of logging metrics (iterations)
   save_freq: 100                  # Frequency of saving checkpoints (iterations)
-  visualization_interval: 100     # Visualize attention maps periodically (iterations)
+  visualization_interval: 1000     # Visualize attention maps periodically (iterations)
   nvis: 8 
   rand_vis: false 
