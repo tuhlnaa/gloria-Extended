@@ -96,7 +96,7 @@ class CheXpertMultimodalDataset(Dataset):
     def _load_text_data(self, split: str) -> Tuple[List[str], Dict[str, List[str]]]:
         """Load text data for the specified split."""
         # Path to cached captions
-        caption_path = self.data_dir / f"captions_{self.config.master_csv.split('.')[0]}.pickle"
+        caption_path = self.data_dir / f"captions_{self.config.master_csv.split('.')[0]}_captions-per-image_{self.max_word_num}.pickle"
         
         # Create captions if they don't exist
         if not caption_path.exists() or self.config.dataset.force_rebuild_captions:

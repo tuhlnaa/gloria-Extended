@@ -17,7 +17,7 @@ dataset:
     imsize: 256                        # Target image size
   text: 
     word_num: 97                  # Maximum number of tokens after tokenization
-    captions_per_image: 5         # Maximum number of words to use per image
+    captions_per_image: 10   # 🛠️ default: 5       # Maximum number of words to use per image
     full_report: false            # Use full report (true) or single sentence (false)
     use_findings_section: false   # Prioritize findings section if available
   columns:                        # Column names in the CSV
@@ -81,7 +81,7 @@ criterion:
 # Learning rate schedule parameters
 lr_scheduler:
   name: 'plateau'
-  epochs: 50                       # Number of epochs to train
+  epochs: 15           # 🛠️ default: 50         # Number of epochs to train
   learning_rate: 1e-4 # 1.0e-3 # 🛠️      # Learning rate for the optimizer
   warmup_ratio: 0.1               # Ratio of warmup steps
   patience: 7                     # Early stopping patience
@@ -114,7 +114,7 @@ logging:
     task_type: "training"         # ClearML task type
     tags: []                      # List of tags for ClearML task
   
-  experiment_name: "experiment10"  # Name for the experiment
+  experiment_name: "experiment12"  # Name for the experiment
 
 
 # Miscellaneous parameters

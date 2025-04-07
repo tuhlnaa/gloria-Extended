@@ -55,84 +55,113 @@ class GLoRIAModel:
     def train_epoch(self, train_loader, epoch: int) -> Dict[str, float]:
         """Train the model for one epoch."""
         self.model.train()
-        train_loss = 0.0
+        
+        # Initialize all metrics trackers
+        metrics_sum = {
+            "train_loss": 0.0,
+            "train_global_loss": 0.0,
+            "train_local_loss": 0.0,
+            "train_local_loss_i2t": 0.0,
+            "train_local_loss_t2i": 0.0,
+            "train_global_loss_i2t": 0.0,
+            "train_global_loss_t2i": 0.0
+        }
         
         for batch_idx, batch in enumerate(train_loader):
-            # Move batch to device
             batch = self._prepare_batch(batch)
             
             self.optimizer.zero_grad()
             
             # Forward pass and loss calculation
             img_emb_local, img_emb_global, text_emb_local, text_emb_global, sents = self.model(batch)
-            total_loss, attn_maps = self.model.compute_loss(
+            loss_result = self.model.compute_loss(
                 img_emb_local, img_emb_global, text_emb_local, text_emb_global, sents
             )
             
             # Backward pass
-            total_loss.backward()
+            loss_result.total_loss.backward()
 
             # Gradient clipping if needed
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.config.optimizer.clip_grad)
 
             self.optimizer.step()
             
-            train_loss += total_loss.item()
+            # Update all metrics
+            metrics_sum["train_loss"] += loss_result.total_loss.item()
+            metrics_sum["train_global_loss"] += loss_result.global_loss.item()
+            metrics_sum["train_local_loss"] += loss_result.local_loss.item()
+            metrics_sum["train_local_loss_i2t"] += loss_result.local_loss_image_to_text.item()
+            metrics_sum["train_local_loss_t2i"] += loss_result.local_loss_text_to_image.item() 
+            metrics_sum["train_global_loss_i2t"] += loss_result.global_loss_image_to_text.item()
+            metrics_sum["train_global_loss_t2i"] += loss_result.global_loss_text_to_image.item()
             
             # Visualize attention maps periodically if configured
             visualization_interval = self.config.misc.visualization_interval
             if visualization_interval is not None and batch_idx % visualization_interval == 0:
                 imgs = batch["imgs"].cpu()
                 self.model.plot_attn_maps(
-                    attn_maps, imgs, sents, epoch, batch_idx
+                    loss_result.attn_maps, imgs, sents, epoch, batch_idx
                 )
 
             # Print progress
             if batch_idx % 10 == 0:
-                print(f"Train Epoch: {epoch} [{batch_idx}/{len(train_loader)}]\tLoss: {total_loss.item():.6f}")
+                print(f"Train Epoch: {epoch} [{batch_idx}/{len(train_loader)}]\tLoss: {loss_result.total_loss.item():.6f}")
         
         # Calculate epoch metrics
-        metrics = {
-            "train_loss": train_loss / len(train_loader)
-        }
+        num_batches = len(train_loader)
+        metrics = {key: value / num_batches for key, value in metrics_sum.items()}
         
-        print(f"Train metrics - Loss: {metrics['train_loss']:.4f}")
+        # Print detailed metrics
+        print(f"Train metrics - Total Loss: {metrics['train_loss']:.4f}, "
+              f"Global Loss: {metrics['train_global_loss']:.4f}, "
+              f"Local Loss: {metrics['train_local_loss']:.4f}")
         
         return metrics
 
 
     def validate(self, val_loader) -> Dict[str, float]:
-        """
-        Validate the model on the validation set.
-        
-        Args:
-            val_loader: DataLoader for validation data
-            
-        Returns:
-            Dict[str, float]: Dictionary of validation metrics
-        """
+        """Validate the model on the validation set."""
         self.model.eval()
-        val_loss = 0.0
+
+        # Initialize all metrics trackers
+        metrics_sum = {
+            "val_loss": 0.0,
+            "val_global_loss": 0.0,
+            "val_local_loss": 0.0,
+            "val_local_loss_i2t": 0.0,
+            "val_local_loss_t2i": 0.0,
+            "val_global_loss_i2t": 0.0,
+            "val_global_loss_t2i": 0.0
+        }
         
         with torch.no_grad():
             for batch in val_loader:
-                # Move batch to device
                 batch = self._prepare_batch(batch)
                 
                 # Forward pass and loss calculation
                 img_emb_local, img_emb_global, text_emb_local, text_emb_global, sents = self.model(batch)
-                total_loss, _ = self.model.compute_loss(
+                loss_result = self.model.compute_loss(
                     img_emb_local, img_emb_global, text_emb_local, text_emb_global, sents
                 )
                 
-                val_loss += total_loss.item()
+                # Update all metrics
+                metrics_sum["val_loss"] += loss_result.total_loss.item()
+                metrics_sum["val_global_loss"] += loss_result.global_loss.item()
+                metrics_sum["val_local_loss"] += loss_result.local_loss.item()
+                metrics_sum["val_local_loss_i2t"] += loss_result.local_loss_image_to_text.item()
+                metrics_sum["val_local_loss_t2i"] += loss_result.local_loss_text_to_image.item() 
+                metrics_sum["val_global_loss_i2t"] += loss_result.global_loss_image_to_text.item()
+                metrics_sum["val_global_loss_t2i"] += loss_result.global_loss_text_to_image.item()
+                
         
-        # Calculate validation metrics
-        metrics = {
-            "val_loss": val_loss / len(val_loader)
-        }
+        # Calculate epoch metrics
+        num_batches = len(val_loader)
+        metrics = {key: value / num_batches for key, value in metrics_sum.items()}
         
-        print(f"Validation metrics - Loss: {metrics['val_loss']:.4f}")
+        # Print detailed metrics
+        print(f"Validation metrics - Total Loss: {metrics['val_loss']:.4f}, "
+              f"Global Loss: {metrics['val_global_loss']:.4f}, "
+              f"Local Loss: {metrics['val_local_loss']:.4f}")
         
         return metrics
     
