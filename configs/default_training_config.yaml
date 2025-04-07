@@ -69,7 +69,7 @@ model:
 optimizer:
   name: "Adam"
   weight_decay: 1e-6 # 0.01  # 🛠️     # Weight decay factor
-  clip_grad: 0.25  # 1.0 # 🛠️
+  clip_grad: 0.25    # 1.0 # 🛠️
 
 
 # Regularization parameters
@@ -80,9 +80,9 @@ criterion:
 
 # Learning rate schedule parameters
 lr_scheduler:
-  name: 'plateau'
+  name: "LinearWarmupCosine"      # 🛠️ default: 'plateau'
   epochs: 15           # 🛠️ default: 50         # Number of epochs to train
-  learning_rate: 1e-4 # 1.0e-3 # 🛠️      # Learning rate for the optimizer
+  learning_rate: 1e-3  # 🛠️ default: 1e-4     # Learning rate for the optimizer
   warmup_ratio: 0.1               # Ratio of warmup steps
   patience: 7                     # Early stopping patience
   monitor: 'val_loss'  # This parameter specifies which metric to watch for making scheduler decisions. 

@@ -16,6 +16,7 @@ from torch.optim.lr_scheduler import (
     ReduceLROnPlateau,
     StepLR
 )
+from flash.core.optimizers import LinearWarmupCosineAnnealingLR
 
 from . import models
 from . import lightning
@@ -119,21 +120,22 @@ def build_optimizer(config: Dict[str, Any], lr: float, model: nn.Module) -> Opti
 def build_scheduler(
         config: Dict[str, Any], 
         optimizer: Optimizer, 
-        dm: Optional[Any] = None
-    ) -> Dict[str, Any]:
+        train_loader
+    ):
     """
     Build a learning rate scheduler based on configuration.
     
     Args:
         config: Configuration dictionary containing scheduler settings
         optimizer: PyTorch optimizer to schedule
-        dm: Optional data module for frequency calculations
-        
-    Returns:
-        Dictionary with scheduler configuration
     """
     scheduler_name = config.lr_scheduler.name
     
+    # Calculate training steps with validation frequency
+    num_training_steps_per_epoch = len(train_loader)
+    total_steps = num_training_steps_per_epoch * config.lr_scheduler.epochs
+    warmup_steps = int(total_steps * config.lr_scheduler.warmup_ratio)
+
     if scheduler_name == "warmup":
         def warmup_lr_lambda(epoch):
             if epoch <= 3:
@@ -149,29 +151,38 @@ def build_scheduler(
         scheduler = ReduceLROnPlateau(optimizer, factor=0.5, patience=5)
     elif scheduler_name == "step":
         scheduler = StepLR(optimizer, step_size=1, gamma=0.8)
+    elif scheduler_name == "LinearWarmupCosine":
+        scheduler = LinearWarmupCosineAnnealingLR(
+        optimizer,
+        warmup_epochs=warmup_steps,
+        max_epochs=total_steps,
+        warmup_start_lr=config.lr_scheduler.learning_rate * 0.1,
+        eta_min=1e-6)
     else:
         return None  # Early return if no scheduler specified
     
-    # Calculate scheduler frequency if validation check interval is set
-    frequency = 1  # Default frequency
-    interval = config.lr_scheduler.interval  # Default interval
+    return scheduler
 
-    # 🛠️
-    # if hasattr(config.lr_scheduler.trainer, 'val_check_interval') and config.lr_scheduler.val_check_interval is not None:
-    #     interval = "step"
-    #     if dm and hasattr(dm, 'train_dataloader'):
-    #         num_iter = len(dm.train_dataloader().dataset)
-    #         if isinstance(config.lr_scheduler.val_check_interval, float):
-    #             frequency = int(num_iter * config.lr_scheduler.val_check_interval)
-    #         else:
-    #             frequency = config.lr_scheduler.val_check_interval
+    # # Calculate scheduler frequency if validation check interval is set
+    # frequency = 1  # Default frequency
+    # interval = config.lr_scheduler.interval  # Default interval
+
+    # # 🛠️
+    # # if hasattr(config.lr_scheduler.trainer, 'val_check_interval') and config.lr_scheduler.val_check_interval is not None:
+    # #     interval = "step"
+    # #     if dm and hasattr(dm, 'train_dataloader'):
+    # #         num_iter = len(dm.train_dataloader().dataset)
+    # #         if isinstance(config.lr_scheduler.val_check_interval, float):
+    # #             frequency = int(num_iter * config.lr_scheduler.val_check_interval)
+    # #         else:
+    # #             frequency = config.lr_scheduler.val_check_interval
     
-    return {
-        "scheduler": scheduler,
-        "monitor": config.lr_scheduler.monitor,
-        "interval": interval,
-        "frequency": frequency,
-    }
+    # return {
+    #     "scheduler": scheduler,
+    #     "monitor": config.lr_scheduler.monitor,
+    #     "interval": interval,
+    #     "frequency": frequency,
+    # }
 
 
 def build_loss(config: Dict[str, Any]) -> nn.Module:

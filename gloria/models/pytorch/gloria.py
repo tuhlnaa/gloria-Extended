@@ -17,12 +17,12 @@ class GLoRIAModel:
     multimodal medical image recognition with label efficiency.
     """
     
-    def __init__(self, config: OmegaConf) -> None:
+    def __init__(self, config: OmegaConf, train_loader) -> None:
         """Initialize the GLoRIA model."""
         self.config = config
         self.lr = config.lr_scheduler.learning_rate
         self.device = config.device.device
-        self.datamodule = None
+        self.train_loader = train_loader
 
         # Initialize the appropriate model based on configuration
         self.model = self._initialize_model()
@@ -40,16 +40,15 @@ class GLoRIAModel:
         return builder.build_gloria_model(self.config)
     
 
-    def setup_optimization(self, datamodule=None) -> None:
+    def setup_optimization(self) -> None:
         """
         Set up optimizer and learning rate scheduler.
         
         Args:
             datamodule: Optional data module for scheduler steps
         """
-        self.datamodule = datamodule
         self.optimizer = builder.build_optimizer(self.config, self.lr, self.model)
-        self.scheduler = builder.build_scheduler(self.config, self.optimizer, self.datamodule)
+        self.scheduler = builder.build_scheduler(self.config, self.optimizer, self.train_loader)
 
 
     def train_epoch(self, train_loader, epoch: int) -> Dict[str, float]:
@@ -85,6 +84,7 @@ class GLoRIAModel:
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.config.optimizer.clip_grad)
 
             self.optimizer.step()
+            self.scheduler.step()
             
             # Update all metrics
             metrics_sum["train_loss"] += loss_result.total_loss.item()

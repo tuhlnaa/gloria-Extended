@@ -12,8 +12,6 @@ from flash.core.optimizers import LinearWarmupCosineAnnealingLR
 
 from configs.config import parse_args, save_config
 from data.utils import dataset_factory
-from data.dataset import get_chexpert_dataloader
-from data.pretraining_datasetV2 import get_chexpert_multimodal_dataloader
 from gloria.engine.trainer import Trainer
 from gloria.engine.validator import Validator
 from gloria.models import pytorch
@@ -76,7 +74,7 @@ def setup_training(config: OmegaConf) -> Tuple[nn.Module, torch.device, Dict[str
 
     # Initialize model
     model_class = pytorch.PYTORCH_MODULES[config.phase.lower()]
-    model = model_class(config)
+    model = model_class(config, train_loader)
 
     logger.log_model_summary(model)
     
@@ -88,11 +86,6 @@ def setup_training(config: OmegaConf) -> Tuple[nn.Module, torch.device, Dict[str
 
 #     # Initialize data loaders and logger
 #     model, dataloaders, logger = setup_training(config)
-
-#     # # Calculate training steps with validation frequency
-#     # num_training_steps_per_epoch = len(dataloaders['train'])
-#     # total_steps = num_training_steps_per_epoch * config.epochs
-#     # warmup_steps = int(total_steps * config.warmup_ratio)
     
 #     # scheduler = LinearWarmupCosineAnnealingLR(
 #     #     optimizer,
@@ -176,8 +169,8 @@ def run_training_pipeline(config: OmegaConf) -> dict:
         train_metrics = model.train_epoch(dataloaders['train'], epoch)
         train_metrics.update({"learning_rate": model.optimizer.param_groups[0]['lr']})
 
-        if epoch % 1 == 0: 
-            model.scheduler["scheduler"].step(train_metrics["train_loss"])
+        # if epoch % 1 == 0: 
+        #     model.scheduler.step(train_metrics["train_loss"])
 
         # Log metrics
         logger.log_metrics(train_metrics, epoch)
