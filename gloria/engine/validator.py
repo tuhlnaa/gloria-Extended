@@ -5,6 +5,7 @@ This module handles validation, testing, and metric computation for image
 classification models, with special support for GLoRIA pre-trained models.
 """
 
+from omegaconf import OmegaConf
 import torch
 import numpy as np
 
@@ -21,7 +22,7 @@ class Validator:
     
     Handles validation, testing, and metrics computation.
     """
-    def __init__(self, model: torch.nn.Module, loss_fn: torch.nn.Module, config):
+    def __init__(self, config: OmegaConf, model: torch.nn.Module, loss_fn: torch.nn.Module):
         self.model = model
         self.criterion = loss_fn
         self.config = config

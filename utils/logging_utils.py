@@ -127,20 +127,29 @@ class LoggingManager:
 
 
     @staticmethod
-    def print_training_config(args: Any, total_steps: int, steps_per_epoch: int,
-                            train_loader: DataLoader, val_loader: DataLoader,
-                            loss_functions: Union[Dict, List], title: str = "Training Configuration") -> None:
+    def print_training_config(
+            args: Any,
+            train_loader: DataLoader, 
+            val_loader: DataLoader,
+            loss_functions: Union[Dict, List], 
+            title: str = "Training Configuration"
+        ) -> None:
         """Print training configuration details in a structured table."""
+
+        # Calculate training steps with validation frequency
+        num_training_steps_per_epoch = len(train_loader)
+        total_steps = num_training_steps_per_epoch * args.lr_scheduler.epochs
+
         table = Table(title=title, box=box.SIMPLE_HEAVY)
         table.add_column("Parameter", justify="right", style="cyan", no_wrap=True)
         table.add_column("Value", style="magenta")
 
         params = {
-            "Learning rate": args.lr,
-            "Epochs": args.epochs,
-            "Batch size": args.batch_size,
+            "Learning rate": args.lr_scheduler.learning_rate,
+            "Epochs": args.lr_scheduler.epochs,
+            "Batch size": args.model.batch_size,
             "Total steps (Iteration)": total_steps,
-            "Steps per epoch": steps_per_epoch,
+            "Steps per epoch": num_training_steps_per_epoch,
             "Training examples": len(train_loader.dataset),
             "Validation examples": len(val_loader.dataset),
             "Criterion": loss_functions

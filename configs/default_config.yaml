@@ -19,7 +19,7 @@ dataset:
   mask_dir: null                  # Optional: Path to directory containing masks
   selected_classes: null          # List of class names to use (others treated as background)
   num_workers: 0                  # Number of data loading workers
-  fraction: 0.02 # 1.0  # 🛠️                  # Train split ratio
+  fraction: 0.01 # 1.0  # 🛠️                  # Train split ratio
   num_classes: 2                  # Number of target classes
   image: 
     imsize: 256                   # Target image size
@@ -65,7 +65,7 @@ criterion:
 # Learning rate schedule parameters
 lr_scheduler:
   name: 'plateau'
-  epochs: 20                       # Number of epochs to train
+  epochs: 50          # 🛠️ default: 50      # Number of epochs to train
   learning_rate: 1e-4 # 1.0e-3 # 🛠️      # Learning rate for the optimizer
   warmup_ratio: 0.1               # Ratio of warmup steps
   patience: 7                     # Early stopping patience
@@ -93,12 +93,12 @@ logging:
   
   # ClearML logger parameters (only required if logger="clearml")
   clearml:
-    project: null                 # ClearML project name
-    task_id: false                # ClearML task ID to resume or boolean flag
-    task_type: "training"         # ClearML task type
-    tags: []                      # List of tags for ClearML task
+    project: "gloria-Extended-classification"  # ClearML project name
+    task_id: false                             # ClearML task ID to resume or boolean flag
+    task_type: "training"                      # ClearML task type
+    tags: []                                   # List of tags for ClearML task
   
-  experiment_name: "experiment6"  # Name for the experiment
+  experiment_name: "experiment2"  # Name for the experiment
 
 
 # Miscellaneous parameters
@@ -106,4 +106,4 @@ misc:
   seed: 42                        # Random seed
   validation_freq: 100            # Frequency of validation (iterations)
   log_freq: 100                   # Frequency of logging metrics (iterations)
-  save_freq: 100                  # Frequency of saving checkpoints (iterations)
+  save_freq: 1                    # Frequency of saving checkpoints (epochs)

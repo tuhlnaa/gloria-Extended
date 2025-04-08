@@ -5,26 +5,26 @@ This module handles the training loop and related functionality for image classi
 models, with special support for GLoRIA pre-trained models.
 """
 import os
+from pathlib import Path
+from omegaconf import OmegaConf
 import torch
 import torch.nn as nn
 
 from tqdm.auto import tqdm
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 from torch.utils.data import DataLoader
 
 from gloria import builder
 from gloria.utils.metrics import ClassificationMetrics
-from .validator import Validator
-
 
 class Trainer:
     """Trainer class for image classification models."""
 
-    def __init__(self, config):
+    def __init__(self, config: OmegaConf, train_loader):
         self.config = config
         self.learning_rate = config.lr_scheduler.learning_rate
         self.device = config.device.device
-        self.datamodule = None
+        self.train_loader = train_loader
         
         # Initialize the model
         self.model = self._initialize_model().to(self.device)
@@ -43,9 +43,8 @@ class Trainer:
         return builder.build_image_model(self.config)
 
 
-    def setup_optimization(self, datamodule=None) -> None:
+    def setup_optimization(self) -> None:
         """Set up optimizer and learning rate scheduler."""
-        self.datamodule = datamodule
         self.optimizer = builder.build_optimizer(
             self.config, 
             self.learning_rate, 
@@ -54,7 +53,7 @@ class Trainer:
         self.scheduler = builder.build_scheduler(
             self.config, 
             self.optimizer, 
-            self.datamodule
+            self.train_loader
         )
 
 
@@ -87,26 +86,32 @@ class Trainer:
 
             metrics.update(logits, labels, loss)
 
-            # Print progress at intervals
-            if batch_idx % self.config.get('log_interval', 10) == 0:
-                print(f"Train Epoch: {epoch} [{batch_idx}/{len(train_loader)}]\tLoss: {loss.item():.6f}")
-        
+            # # Print progress at intervals
+            # if batch_idx % self.config.get('log_interval', 10) == 0:
+            #     print(f"Train Epoch: {epoch} [{batch_idx}/{len(train_loader)}]\tLoss: {loss.item():.6f}")
+
         return metrics.compute()
 
 
+    def _save_checkpoint(self, metrics: Dict[str, float], is_best: bool) -> None:
+        """Save training checkpoint with additional iteration information"""
+        self.checkpoint_handler.save_checkpoint(
+            epochs=self.current_epochs,
+            model_state=self.model.state_dict(),
+            optimizer_state=self.optimizer.state_dict(),
+            scheduler_state=self.scheduler.state_dict() if self.scheduler else None,
+            metrics=metrics,
+            is_best=is_best,
+        )
+
     def save_checkpoint(self, path: str) -> None:
-        """
-        Save model checkpoint.
-        
-        Args:
-            path: Path where to save the checkpoint
-        """
+        """Save model checkpoint."""
         os.makedirs(os.path.dirname(path), exist_ok=True)
         
         checkpoint = {
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict() if self.optimizer else None,
-            'scheduler_state_dict': self.scheduler["scheduler"].state_dict() if self.scheduler else None,
+            'scheduler_state_dict': self.scheduler.state_dict() if self.scheduler else None,
             'config': self.config,
         }
         
@@ -115,13 +120,7 @@ class Trainer:
 
 
     def load_checkpoint(self, path: str, load_optimizer: bool = True) -> None:
-        """
-        Load model checkpoint.
-        
-        Args:
-            path: Path to the checkpoint file
-            load_optimizer: Whether to load optimizer and scheduler states
-        """
+        """Load model checkpoint."""
         checkpoint = torch.load(path, map_location=self.device)
         self.model.load_state_dict(checkpoint['model_state_dict'])
         
@@ -134,3 +133,18 @@ class Trainer:
         print(f"Checkpoint loaded from {path}")
 
 
+    def resume_from_checkpoint(self, checkpoint_path: Union[str, Path]) -> None:
+        """Resume training from checkpoint."""
+        checkpoint = torch.load(checkpoint_path, map_location=self.device)
+        
+        self.model.load_state_dict(checkpoint["model_state_dict"])
+        self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+
+        if self.scheduler is not None and "scheduler_state_dict" in checkpoint:
+            self.scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+
+        start_epochs = checkpoint.get("epochs", 0)
+        best_val_loss = checkpoint.get("best_val_loss", float("inf"))
+        best_val_metric = checkpoint.get("best_metrics", float("inf"))
+
+        return start_epochs, best_val_metric, best_val_loss

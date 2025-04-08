@@ -18,12 +18,12 @@ class ClassificationModel:
     Handles training, validation, and testing with appropriate metrics tracking.
     """
 
-    def __init__(self, config: OmegaConf):
+    def __init__(self, config: OmegaConf, train_loader):
         """Initialize the classification model."""
         self.config = config
         self.lr = config.lr_scheduler.learning_rate
         self.device = config.device.device
-        self.datamodule = None
+        self.train_loader = train_loader
         
         # Initialize the appropriate model based on configuration
         self.model = self._initialize_model()
@@ -54,16 +54,10 @@ class ClassificationModel:
         #     return builder.build_image_model(self.config)
 
 
-    def setup_optimization(self, datamodule=None) -> None:
-        """
-        Set up optimizer and learning rate scheduler.
-        
-        Args:
-            datamodule: Optional data module for scheduler steps
-        """
-        self.datamodule = datamodule
+    def setup_optimization(self) -> None:
+        """Set up optimizer and learning rate scheduler."""
         self.optimizer = builder.build_optimizer(self.config, self.lr, self.model)
-        self.scheduler = builder.build_scheduler(self.config, self.optimizer, self.datamodule) # 🛠️
+        self.scheduler = builder.build_scheduler(self.config, self.optimizer, self.train_loader)
 
 
     def train_epoch(self, train_loader, epoch: int) -> Dict[str, float]:

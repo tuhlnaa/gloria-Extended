@@ -23,7 +23,7 @@ class GLoRIAModel:
         self.lr = config.lr_scheduler.learning_rate
         self.device = config.device.device
         self.train_loader = train_loader
-
+        print('bbbbb:', len(self.train_loader))
         # Initialize the appropriate model based on configuration
         self.model = self._initialize_model()
         self.model.to(self.device)
@@ -47,6 +47,7 @@ class GLoRIAModel:
         Args:
             datamodule: Optional data module for scheduler steps
         """
+        print('ccccc:', len(self.train_loader))
         self.optimizer = builder.build_optimizer(self.config, self.lr, self.model)
         self.scheduler = builder.build_scheduler(self.config, self.optimizer, self.train_loader)
 
