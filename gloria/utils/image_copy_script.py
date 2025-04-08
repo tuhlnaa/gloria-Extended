@@ -88,6 +88,6 @@ if __name__ == "__main__":
     main()
 
 """
-python utils\image_copy_script.py --input "D:\Kai\DATA_Set_2\X-ray\CheXpert-v1.0" --output "D:\Kai\DATA_Set_2\X-ray\chexpert_5x200" --csv "E:\Kai_2\CODE_Repository\gloria-Extended\pretrained\chexpert_5x200.csv"
+python utils\image_copy_script.py --input ".\X-ray\CheXpert-v1.0" --output ".\X-ray\chexpert_5x200" --csv ".\chexpert_5x200.csv"
 
 """

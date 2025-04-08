@@ -1,162 +1,241 @@
-import torch
+"""
+Checkpoint Inspector: A tool to display PyTorch checkpoint information.
+"""
 import argparse
-import os
-import numpy as np
-from collections import OrderedDict
 import json
+import torch
 
-def explore_checkpoint(checkpoint_path, save_to_file=None):
-    """
-    Explore the contents of a PyTorch checkpoint file.
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, Any, Optional, List, Tuple
+
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich.tree import Tree
+from rich.progress import Progress
+
+
+class CheckpointInspector:
+    """Tool for inspecting PyTorch checkpoint files with rich output formatting."""
     
-    Args:
-        checkpoint_path (str): Path to the PyTorch checkpoint file (.pt, .pth)
-        save_to_file (str, optional): Path to save the report as a text file
-    """
-    print(f"Loading checkpoint from: {checkpoint_path}")
-    
-    # Load the checkpoint
-    try:
-        checkpoint = torch.load(checkpoint_path, map_location=torch.device('cpu'))
-        print("Checkpoint loaded successfully!")
-    except Exception as e:
-        print(f"Error loading checkpoint: {e}")
-        return
-    
-    # Get basic information
-    print("\n" + "="*50)
-    print("CHECKPOINT STRUCTURE OVERVIEW")
-    print("="*50)
-    
-    # If it's a state_dict directly (common format)
-    if isinstance(checkpoint, OrderedDict) or isinstance(checkpoint, dict):
-        print("Checkpoint is a dictionary/state_dict")
-        top_level_keys = list(checkpoint.keys())
-    else:
-        print(f"Checkpoint is type: {type(checkpoint)}")
-        if hasattr(checkpoint, "__dict__"):
-            print("Checkpoint has attributes")
-            top_level_keys = list(checkpoint.__dict__.keys())
-        else:
-            top_level_keys = []
-            print("Checkpoint has no dictionary-like structure")
-    
-    # Display top-level keys
-    print("\nTop-level keys:")
-    for i, key in enumerate(top_level_keys):
-        print(f"  {i+1}. {key}")
-    
-    # Function to recursively explore and report on the checkpoint structure
-    def explore_structure(obj, prefix="", max_depth=3, current_depth=0, max_items=10):
-        """Recursively explore the structure of an object"""
-        result = []
+    def __init__(self, console: Optional[Console] = None):
+        self.console = console or Console()
         
-        if current_depth >= max_depth:
-            return [f"{prefix} ... (max depth reached)"]
-        
-        if isinstance(obj, dict) or isinstance(obj, OrderedDict):
-            if not obj:
-                return [f"{prefix} (empty dict)"]
+    def load_checkpoint(self, checkpoint_path: str) -> Dict[str, Any]:
+        """Load a PyTorch checkpoint file."""
+        path = Path(checkpoint_path)
+        if not path.exists():
+            self.console.print(f"[bold red]Error:[/] Checkpoint file {path} not found")
+            return {}
             
-            count = 0
-            for k, v in obj.items():
-                if count >= max_items:
-                    result.append(f"{prefix} ... ({len(obj) - max_items} more items)")
-                    break
-                
-                if isinstance(v, (dict, OrderedDict, list, tuple, torch.Tensor, np.ndarray)):
-                    result.append(f"{prefix}{k}:")
-                    result.extend(explore_structure(v, prefix + "  ", max_depth, current_depth + 1, max_items))
+        try:
+            with Progress() as progress:
+                task = progress.add_task("[cyan]Loading checkpoint...", total=1)
+                checkpoint = torch.load(path, map_location=torch.device('cpu'))
+                progress.update(task, completed=1)
+            return checkpoint
+        except Exception as e:
+            self.console.print(f"[bold red]Error loading checkpoint:[/] {str(e)}")
+            return {}
+    
+
+    def _format_timestamp(self, timestamp: str) -> str:
+        """Format ISO timestamp to a more readable form."""
+        try:
+            dt = datetime.fromisoformat(timestamp)
+            return dt.strftime("%Y-%m-%d %H:%M:%S")
+        except (ValueError, TypeError):
+            return "Invalid timestamp"
+    
+
+    def _get_state_dict_info(self, state_dict: Dict[str, Any]) -> List[Tuple[str, str, int]]:
+        """Extract parameter information from a state dictionary.
+        
+        Args:
+            state_dict: PyTorch state dictionary
+            
+        Returns:
+            List of (name, shape, param_count) tuples
+        """
+        info = []
+        for name, param in state_dict.items():
+            if isinstance(param, torch.Tensor):
+                shape_str = "×".join(str(dim) for dim in param.shape)
+                param_count = param.numel()
+                info.append((name, shape_str, param_count))
+        return info
+    
+
+    def display_checkpoint_info(self, checkpoint_path: str) -> None:
+        """Display formatted information about a checkpoint."""
+        checkpoint = self.load_checkpoint(checkpoint_path)
+        if not checkpoint:
+            return
+        
+        # Create main tree
+        tree = Tree(f"[bold cyan]Checkpoint: {Path(checkpoint_path).name}")
+        
+        # Basic information
+        basic_info = tree.add("[bold green]Basic Information")
+        if 'epochs' in checkpoint:
+            basic_info.add(f"Epoch: [yellow]{checkpoint['epochs']}")
+        if 'timestamp' in checkpoint:
+            formatted_time = self._format_timestamp(checkpoint['timestamp'])
+            basic_info.add(f"Saved at: [yellow]{formatted_time}")
+        if 'best_val_loss' in checkpoint and checkpoint['best_val_loss'] is not None:
+            basic_info.add(f"Validation Loss: [yellow]{checkpoint['best_val_loss']:.6f}")
+        
+        # Metrics
+        if 'best_metrics' in checkpoint and checkpoint['best_metrics']:
+            metrics_branch = tree.add("[bold green]Metrics")
+            metrics_table = Table(show_header=True, header_style="bold magenta")
+            metrics_table.add_column("Metric")
+            metrics_table.add_column("Value")
+            
+            for metric, value in checkpoint['best_metrics'].items():
+                if isinstance(value, (int, float)):
+                    metrics_table.add_row(metric, f"{value:.6f}")
                 else:
-                    result.append(f"{prefix}{k}: {type(v).__name__} = {v}")
+                    metrics_table.add_row(metric, str(value))
+            metrics_branch.add(metrics_table)
+        
+        # Model parameters summary
+        if 'model_state_dict' in checkpoint:
+            model_branch = tree.add("[bold green]Model Parameters")
+            param_info = self._get_state_dict_info(checkpoint['model_state_dict'])
+            
+            # Calculate total parameters
+            total_params = sum(count for _, _, count in param_info)
+            model_branch.add(f"Total parameters: [yellow]{total_params:,}")
+            
+            # Create parameter table
+            param_table = Table(show_header=True, header_style="bold magenta")
+            param_table.add_column("Layer")
+            param_table.add_column("Shape")
+            param_table.add_column("Parameters")
+            
+            # Add top 10 largest layers by parameter count
+            sorted_params = sorted(param_info, key=lambda x: x[2], reverse=True)
+            for name, shape, count in sorted_params[:10]:
+                param_table.add_row(name, shape, f"{count:,}")
+            
+            if len(sorted_params) > 10:
+                param_table.add_row("...", "...", "...")
                 
-                count += 1
+            model_branch.add(param_table)
         
-        elif isinstance(obj, (list, tuple)):
-            if not obj:
-                return [f"{prefix} (empty {type(obj).__name__})"]
+        # Optimizer information
+        if 'optimizer_state_dict' in checkpoint:
+            optimizer_branch = tree.add("[bold green]Optimizer")
+            if 'param_groups' in checkpoint['optimizer_state_dict']:
+                for i, group in enumerate(checkpoint['optimizer_state_dict']['param_groups']):
+                    group_info = []
+                    for k, v in group.items():
+                        if k != 'params':
+                            group_info.append(f"{k}: {v}")
+                    optimizer_branch.add(f"Group {i}: {', '.join(group_info)}")
+        
+        # Scheduler information
+        if 'scheduler_state_dict' in checkpoint:
+            scheduler_branch = tree.add("[bold green]Scheduler")
+            scheduler_state = checkpoint['scheduler_state_dict']
             
-            result.append(f"{prefix} {type(obj).__name__} with {len(obj)} items:")
-            if len(obj) > max_items:
-                for i, item in enumerate(obj[:max_items]):
-                    if isinstance(item, (dict, OrderedDict, list, tuple, torch.Tensor, np.ndarray)):
-                        result.append(f"{prefix}  {i}:")
-                        result.extend(explore_structure(item, prefix + "    ", max_depth, current_depth + 1, max_items))
-                    else:
-                        result.append(f"{prefix}  {i}: {type(item).__name__} = {item}")
-                result.append(f"{prefix}  ... ({len(obj) - max_items} more items)")
-            else:
-                for i, item in enumerate(obj):
-                    if isinstance(item, (dict, OrderedDict, list, tuple, torch.Tensor, np.ndarray)):
-                        result.append(f"{prefix}  {i}:")
-                        result.extend(explore_structure(item, prefix + "    ", max_depth, current_depth + 1, max_items))
-                    else:
-                        result.append(f"{prefix}  {i}: {type(item).__name__} = {item}")
-        
-        elif isinstance(obj, torch.Tensor):
-            result.append(f"{prefix} Tensor: shape={obj.shape}, dtype={obj.dtype}, device={obj.device}")
-            if obj.numel() <= 10:
-                result.append(f"{prefix}  Values: {obj.tolist()}")
-            elif obj.ndim == 0:
-                result.append(f"{prefix}  Value: {obj.item()}")
-            else:
-                # Add some statistical info for larger tensors
-                result.append(f"{prefix}  Stats: min={obj.min().item()}, max={obj.max().item()}, mean={obj.float().mean().item():.4f}, std={obj.float().std().item():.4f}")
-        
-        elif isinstance(obj, np.ndarray):
-            result.append(f"{prefix} ndarray: shape={obj.shape}, dtype={obj.dtype}")
-            if obj.size <= 10:
-                result.append(f"{prefix}  Values: {obj.tolist()}")
-            else:
-                # Add some statistical info for larger arrays
-                result.append(f"{prefix}  Stats: min={obj.min()}, max={obj.max()}, mean={obj.mean():.4f}, std={obj.std():.4f}")
-        
-        else:
-            result.append(f"{prefix} {type(obj).__name__} = {obj}")
-        
-        return result
+            # Display common scheduler parameters
+            common_params = ['base_lrs', 'last_epoch']
+            for param in common_params:
+                if param in scheduler_state:
+                    scheduler_branch.add(f"{param}: {scheduler_state[param]}")
+
+        # Render the tree
+        self.console.print()
+        self.console.print(Panel(tree, title="Checkpoint Inspector", border_style="blue"))
+        self.console.print()
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Inspect PyTorch checkpoint files')
+    parser.add_argument('checkpoint_path', type=str, help='Path to the checkpoint file')
+    parser.add_argument('--json', action='store_true', help='Export checkpoint info as JSON')
+    args = parser.parse_args()
     
-    # Explore and report detailed structure
-    print("\n" + "="*50)
-    print("DETAILED CHECKPOINT STRUCTURE")
-    print("="*50)
+    console = Console()
+    inspector = CheckpointInspector(console)
     
-    if isinstance(checkpoint, dict) or isinstance(checkpoint, OrderedDict):
-        structure_report = explore_structure(checkpoint)
+    if args.json:
+        # JSON export mode
+        checkpoint = inspector.load_checkpoint(args.checkpoint_path)
+        if checkpoint:
+            # Clean up non-serializable parts for JSON export
+            clean_checkpoint = {}
+            for key, value in checkpoint.items():
+                if key in ['model_state_dict', 'optimizer_state_dict', 'scheduler_state_dict']:
+                    # Include summary instead of full state dict
+                    if key == 'model_state_dict':
+                        param_info = inspector._get_state_dict_info(value)
+                        clean_checkpoint[f"{key}_summary"] = {
+                            'total_params': sum(count for _, _, count in param_info),
+                            'layers': len(param_info)
+                        }
+                else:
+                    clean_checkpoint[key] = value
+                    
+            # Print JSON
+            print(json.dumps(clean_checkpoint, indent=2, default=str))
     else:
-        if hasattr(checkpoint, "__dict__"):
-            structure_report = explore_structure(checkpoint.__dict__)
-        else:
-            structure_report = ["Checkpoint is not explorable with dictionary-like methods"]
-    
-    for line in structure_report:
-        print(line)
-    
-    # Save to file if requested
-    if save_to_file:
-        with open(save_to_file, 'w') as f:
-            f.write(f"Checkpoint Analysis: {checkpoint_path}\n\n")
-            f.write("="*50 + "\n")
-            f.write("TOP-LEVEL KEYS\n")
-            f.write("="*50 + "\n")
-            for i, key in enumerate(top_level_keys):
-                f.write(f"{i+1}. {key}\n")
-            
-            f.write("\n" + "="*50 + "\n")
-            f.write("DETAILED STRUCTURE\n")
-            f.write("="*50 + "\n")
-            for line in structure_report:
-                f.write(line + "\n")
-            
-            print(f"\nReport saved to {save_to_file}")
+        # Rich display mode
+        inspector.display_checkpoint_info(args.checkpoint_path)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Explore a PyTorch checkpoint file")
-    parser.add_argument("checkpoint_path", type=str, help="Path to the checkpoint file")
-    parser.add_argument("--output", "-o", type=str, help="Save the report to this file")
-    parser.add_argument("--max-depth", type=int, default=3, help="Maximum depth to explore (default: 3)")
-    
-    args = parser.parse_args()
-    
-    explore_checkpoint(args.checkpoint_path, args.output)
+    main()
+
+"""
+python utils\checkpoint_analyzer.py "E:\Kai_2\CODE_Repository\gloria-Extended\output\checkpoint_best.pth"
+╭────────────────────────────────────────────────────────── Checkpoint Inspector ───────────────────────────────────────────────────────────╮
+│ Checkpoint: checkpoint_latest.pth                                                                                                         │
+│ ├── Basic Information                                                                                                                     │
+│ │   ├── Epoch: 17                                                                                                                         │
+│ │   └── Saved at: 2025-04-08 13:36:59                                                                                                     │
+│ ├── Metrics                                                                                                                               │
+│ │   └── ┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┓                                                                                                  │
+│ │       ┃ Metric            ┃ Value    ┃                                                                                                  │
+│ │       ┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━┩                                                                                                  │
+│ │       │ val_loss          │ 1.057028 │                                                                                                  │
+│ │       │ val_mean_auroc    │ 0.697875 │                                                                                                  │
+│ │       │ val_mean_auprc    │ 0.504642 │                                                                                                  │
+│ │       │ val_auroc_class_0 │ 0.653472 │                                                                                                  │
+│ │       │ val_auprc_class_0 │ 0.551278 │                                                                                                  │
+│ │       │ val_auroc_class_1 │ 0.633545 │                                                                                                  │
+│ │       │ val_auprc_class_1 │ 0.513680 │                                                                                                  │
+│ │       │ val_auroc_class_2 │ 0.643945 │                                                                                                  │
+│ │       │ val_auprc_class_2 │ 0.299151 │                                                                                                  │
+│ │       │ val_auroc_class_3 │ 0.792693 │                                                                                                  │
+│ │       │ val_auprc_class_3 │ 0.488719 │                                                                                                  │
+│ │       │ val_auroc_class_4 │ 0.765719 │                                                                                                  │
+│ │       │ val_auprc_class_4 │ 0.670382 │                                                                                                  │
+│ │       └───────────────────┴──────────┘                                                                                                  │
+│ ├── Model Parameters                                                                                                                      │
+│ │   ├── Total parameters: 23,571,450                                                                                                      │
+│ │   └── ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓                                                         │
+│ │       ┃ Layer                                    ┃ Shape         ┃ Parameters ┃                                                         │
+│ │       ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩                                                         │
+│ │       │ img_encoder.layer4.0.conv2.weight        │ 512×512×3×3   │ 2,359,296  │                                                         │
+│ │       │ img_encoder.layer4.1.conv2.weight        │ 512×512×3×3   │ 2,359,296  │                                                         │
+│ │       │ img_encoder.layer4.2.conv2.weight        │ 512×512×3×3   │ 2,359,296  │                                                         │
+│ │       │ img_encoder.layer4.0.downsample.0.weight │ 2048×1024×1×1 │ 2,097,152  │                                                         │
+│ │       │ img_encoder.layer4.0.conv3.weight        │ 2048×512×1×1  │ 1,048,576  │                                                         │
+│ │       │ img_encoder.layer4.1.conv1.weight        │ 512×2048×1×1  │ 1,048,576  │                                                         │
+│ │       │ img_encoder.layer4.1.conv3.weight        │ 2048×512×1×1  │ 1,048,576  │                                                         │
+│ │       │ img_encoder.layer4.2.conv1.weight        │ 512×2048×1×1  │ 1,048,576  │                                                         │
+│ │       │ img_encoder.layer4.2.conv3.weight        │ 2048×512×1×1  │ 1,048,576  │                                                         │
+│ │       │ img_encoder.layer3.0.conv2.weight        │ 256×256×3×3   │ 589,824    │                                                         │
+│ │       │ ...                                      │ ...           │ ...        │                                                         │
+│ │       └──────────────────────────────────────────┴───────────────┴────────────┘                                                         │
+│ ├── Optimizer                                                                                                                             │
+│ │   └── Group 0: lr: 0.0001, betas: (0.5, 0.999), eps: 1e-08, weight_decay: 1e-06, amsgrad: False, maximize: False, foreach: None,        │
+│ │       capturable: False, differentiable: False, fused: None                                                                             │
+│ └── Scheduler                                                                                                                             │
+│     └── last_epoch: 6                                                                                                                     │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+"""

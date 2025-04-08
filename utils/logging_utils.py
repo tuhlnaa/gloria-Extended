@@ -397,7 +397,7 @@ class ClearMLLogger(BaseLogger):
             task_type=task_type,
             continue_last_task=reuse_last_task_id,
             tags=tags,
-            output_uri=False,
+            output_uri=True,
             auto_connect_frameworks={'pytorch': False}
         )
         self.task.set_initial_iteration(offset=0)
@@ -447,12 +447,9 @@ class ClearMLLogger(BaseLogger):
                 if metric_name == 'loss':
                     title = metric_name
                     series = phase
-                elif metric_name == 'mean_accuracy':
-                    title = phase
-                    series = "mean_accuracy"
-                elif "_accuracy" in metric_name:
-                    title = f"{phase}/accuracy"
-                    series = metric_name.replace('_accuracy', '')
+                elif metric_name == "grad_clip_ratio":
+                    title = metric_name
+                    series = phase
                 elif metric_name == 'mean_auroc':
                     title = metric_name
                     series = phase  
@@ -535,10 +532,8 @@ class ClearMLLogger(BaseLogger):
             local_path: Path to the file to upload
             artifact_path: Name for the artifact in ClearML
         """
-        pass
-        print(123)
-        # artifact_name = artifact_path or Path(local_path).name
-        # self.task.upload_artifact(artifact_name, local_path)
+        artifact_name = artifact_path or Path(local_path).name
+        self.task.upload_artifact(artifact_name, local_path)
 
 
     def close(self) -> None:

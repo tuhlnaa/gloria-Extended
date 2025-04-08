@@ -15,7 +15,7 @@ from typing import Dict, List, Tuple, Union
 from torch.utils.data import DataLoader
 
 from gloria import builder
-from gloria.utils.metrics import ClassificationMetrics
+from gloria.utils.metrics import ClassificationMetrics, GradientMonitor
 
 class Trainer:
     """Trainer class for image classification models."""
@@ -64,6 +64,8 @@ class Trainer:
         # Create metrics tracker
         metrics = ClassificationMetrics(split='train')
         metrics.reset()
+        grad_monitor = GradientMonitor(split='train')
+        grad_monitor.reset()
 
         for batch_idx, batch in enumerate(tqdm(train_loader, desc=f"Train Epoch: {epoch}")):
             images, labels = batch
@@ -74,7 +76,10 @@ class Trainer:
             logits = self.model(images)             # Forward pass
             loss = self.criterion(logits, labels)   # Compute loss
             loss.backward()                         # Backward pass
-            
+
+            # Monitor gradients before clipping
+            _ = grad_monitor.update_before_clip(self.model)
+
             # Gradient clipping
             if hasattr(self.config.optimizer, 'clip_grad'):
                 torch.nn.utils.clip_grad_norm_(
@@ -84,53 +89,17 @@ class Trainer:
 
             self.optimizer.step()  # Update parameters
 
+            # Monitor gradients after clipping
+            _ = grad_monitor.update_after_clip(self.model)
+            
             metrics.update(logits, labels, loss)
 
-            # # Print progress at intervals
-            # if batch_idx % self.config.get('log_interval', 10) == 0:
-            #     print(f"Train Epoch: {epoch} [{batch_idx}/{len(train_loader)}]\tLoss: {loss.item():.6f}")
+        # Compute metrics
+        class_metrics = metrics.compute()
+        grad_metrics = grad_monitor.compute()
+        combined_metrics = {**class_metrics, **grad_metrics}
 
-        return metrics.compute()
-
-
-    def _save_checkpoint(self, metrics: Dict[str, float], is_best: bool) -> None:
-        """Save training checkpoint with additional iteration information"""
-        self.checkpoint_handler.save_checkpoint(
-            epochs=self.current_epochs,
-            model_state=self.model.state_dict(),
-            optimizer_state=self.optimizer.state_dict(),
-            scheduler_state=self.scheduler.state_dict() if self.scheduler else None,
-            metrics=metrics,
-            is_best=is_best,
-        )
-
-    def save_checkpoint(self, path: str) -> None:
-        """Save model checkpoint."""
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        
-        checkpoint = {
-            'model_state_dict': self.model.state_dict(),
-            'optimizer_state_dict': self.optimizer.state_dict() if self.optimizer else None,
-            'scheduler_state_dict': self.scheduler.state_dict() if self.scheduler else None,
-            'config': self.config,
-        }
-        
-        torch.save(checkpoint, path)
-        print(f"Checkpoint saved to {path}")
-
-
-    def load_checkpoint(self, path: str, load_optimizer: bool = True) -> None:
-        """Load model checkpoint."""
-        checkpoint = torch.load(path, map_location=self.device)
-        self.model.load_state_dict(checkpoint['model_state_dict'])
-        
-        if load_optimizer and self.optimizer and 'optimizer_state_dict' in checkpoint:
-            self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-            
-        if load_optimizer and self.scheduler and 'scheduler_state_dict' in checkpoint:
-            self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
-            
-        print(f"Checkpoint loaded from {path}")
+        return combined_metrics
 
 
     def resume_from_checkpoint(self, checkpoint_path: Union[str, Path]) -> None:

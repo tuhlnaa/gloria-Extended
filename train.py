@@ -8,10 +8,9 @@ from pathlib import Path
 from omegaconf import OmegaConf
 from typing import Dict, Tuple
 from torch.utils.data import DataLoader
-from flash.core.optimizers import LinearWarmupCosineAnnealingLR
 
-from configs.config import parse_args, save_config
 from data.utils import dataset_factory
+from configs.config import parse_args, save_config
 from gloria.engine.trainer import Trainer
 from gloria.engine.validator import Validator
 from gloria.models import pytorch
@@ -64,6 +63,9 @@ def setup_training(config: OmegaConf) -> Tuple[nn.Module, torch.device, Dict[str
         neptune_config=neptune_config,
         clearml_config=clearml_config
     )
+
+    # Upload a configuration file as an artifact
+    logger.log_artifact(local_path= config.data_dir / "config.yaml")
 
     # Set random seed for reproducibility
     set_seed(config.misc.seed)
@@ -152,7 +154,7 @@ def run_training_pipeline(config: OmegaConf) -> Dict[str, float]:
                 model_state=trainer.model.state_dict(),
                 optimizer_state=trainer.optimizer.state_dict(),
                 scheduler_state=trainer.scheduler.state_dict() if trainer.scheduler else None,
-                metrics=best_val_metric,
+                metrics=val_metrics,
                 is_best=True,
             )
 
@@ -161,7 +163,7 @@ def run_training_pipeline(config: OmegaConf) -> Dict[str, float]:
             model_state=trainer.model.state_dict(),
             optimizer_state=trainer.optimizer.state_dict(),
             scheduler_state=trainer.scheduler.state_dict() if trainer.scheduler else None,
-            metrics=best_val_metric,
+            metrics=val_metrics,
             is_best=False,
         )
 

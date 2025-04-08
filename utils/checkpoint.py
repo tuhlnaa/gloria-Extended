@@ -74,7 +74,6 @@ class CheckpointHandler:
             optimizer_state: Dict[str, Any],
             scheduler_state: Optional[Dict[str, Any]] = None,
             metrics: Optional[Dict[str, float]] = None,
-            loss = None,
             is_best: bool = False,
         ) -> None:
         """Save model checkpoint with metadata.
@@ -96,7 +95,6 @@ class CheckpointHandler:
             'model_state_dict': model_state,
             'optimizer_state_dict': optimizer_state,
             'best_metrics': metrics or {},
-            'best_val_loss': loss,
             'timestamp': datetime.now().isoformat()
         }
         

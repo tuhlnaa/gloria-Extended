@@ -128,3 +128,89 @@ class ClassificationMetrics(nn.Module):
         if compute_metrics:
             return self.compute()
         return None
+    
+
+class GradientMonitor(nn.Module):
+    """A PyTorch module for monitoring gradient norms during training."""
+
+    def __init__(self, split: str = 'train', norm_type: int = 2):
+        """
+        Initialize the gradient monitor.
+
+        Args:
+            split: The data split (typically 'train')
+            norm_type: Order of the norm (typically 2 for L2 norm)
+        """
+        super().__init__()
+        self.split = split
+        self.norm_type = norm_type
+        self.reset()
+
+
+    def reset(self):
+        """Reset all accumulated states for a new computation cycle."""
+        self.grad_norms_before = []
+        self.grad_norms_after = []
+        self.num_steps = 0
+
+
+    def update_before_clip(self, model):
+        """Record gradient norm before clipping."""
+        norm = self.get_grad_norm(model, self.norm_type)
+        self.grad_norms_before.append(norm)
+        return norm
+
+
+    def update_after_clip(self, model):
+        """Record gradient norm after clipping."""
+        norm = self.get_grad_norm(model, self.norm_type)
+        self.grad_norms_after.append(norm)
+        self.num_steps += 1
+        return norm
+
+
+    def get_grad_norm(self, model, norm_type=2):
+        """Calculate the gradient norm of model parameters."""
+        parameters = [p for p in model.parameters() if p.grad is not None]
+        if len(parameters) == 0:
+            return 0.0
+        
+        total_norm = torch.norm(
+            torch.stack([torch.norm(p.grad.detach(), norm_type) for p in parameters]),
+            norm_type
+        )
+        return total_norm.item()
+
+
+    def compute(self) -> Dict[str, float]:
+        """Compute gradient statistics from accumulated data."""
+        if not self.grad_norms_before or not self.grad_norms_after:
+            print(f"Warning: No gradient data accumulated")
+            return {}
+        
+        # Calculate statistics
+        mean_before = float(np.mean(self.grad_norms_before))
+        mean_after = float(np.mean(self.grad_norms_after))
+        max_before = float(np.max(self.grad_norms_before))
+        max_after = float(np.max(self.grad_norms_after))
+        
+        # Calculate mean clipping ratio
+        clip_ratios = [after/before if before > 0 else 1.0 
+                      for before, after in zip(self.grad_norms_before, self.grad_norms_after)]
+        mean_clip_ratio = float(np.mean(clip_ratios))
+        
+        # Create metrics dictionary
+        metrics = {
+            f"{self.split}_grad_norm_before_mean": mean_before,
+            f"{self.split}_grad_norm_after_mean": mean_after,
+            f"{self.split}_grad_norm_before_max": max_before,
+            f"{self.split}_grad_norm_after_max": max_after,
+            f"{self.split}_grad_clip_ratio": mean_clip_ratio,
+        }
+        
+        # Print summary
+        print(f"Gradient stats - Before: {mean_before:.4f} (max: {max_before:.4f}), "
+              f"After: {mean_after:.4f} (max: {max_after:.4f}), "
+              f"Clip ratio: {mean_clip_ratio:.4f}")
+        
+        return metrics

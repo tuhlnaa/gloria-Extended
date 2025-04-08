@@ -2,7 +2,7 @@
 # All paths will be converted to Path objects automatically
 
 # Required parameters (must be provided via command line or config file)
-output_dir: "./output"  # Path to save model and results
+output_dir: "./output/experiment3"  # Path to save model and results
 data_dir: "D:\\Kai\\DATA_Set_2\\X-ray\\CheXpert-v1.0-small"    # Path to the dataset directory
 csv_path: null    # Path to the CSV file containing class ID to name mapping
 
@@ -52,8 +52,8 @@ model:
 # Optimizer parameters
 optimizer:
   name: "Adam"
-  weight_decay: 1e-6 # 0.01  # 🛠️     # Weight decay factor
-  clip_grad: 0.25  # 1.0 # 🛠️
+  weight_decay: 1e-6 # 0.01 # 🛠️ default: 0.01     # Weight decay factor
+  clip_grad: 1.0     # 1.0  # 🛠️ default: 0.25
 
 
 # Regularization parameters
@@ -78,7 +78,7 @@ lr_scheduler:
 # Device & distributed training parameters
 device:
   amp: "no"                       # Automatic mixed precision: "no", "fp16", "bf16"
-  device: "cuda:1"                # Device to use: "cpu", "cuda:0", etc.
+  device: "cuda:0"                # Device to use: "cpu", "cuda:0", etc.
 
 
 # Logging parameters
@@ -98,7 +98,7 @@ logging:
     task_type: "training"                      # ClearML task type
     tags: []                                   # List of tags for ClearML task
   
-  experiment_name: "experiment2"  # Name for the experiment
+  experiment_name: "experiment3"  # Name for the experiment
 
 
 # Miscellaneous parameters
