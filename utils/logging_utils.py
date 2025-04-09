@@ -447,9 +447,12 @@ class ClearMLLogger(BaseLogger):
                 if metric_name == 'loss':
                     title = metric_name
                     series = phase
-                elif metric_name == "grad_clip_ratio":
-                    title = metric_name
-                    series = phase
+                elif metric_name == "grad_clip_ratio" or metric_name == "exploding_grad_ratio" or metric_name == "vanishing_grad_ratio":
+                    title = "grad_ratio"
+                    series = metric_name
+                elif "grad" in metric_name:
+                    title = "grad"
+                    series = metric_name
                 elif metric_name == 'mean_auroc':
                     title = metric_name
                     series = phase  

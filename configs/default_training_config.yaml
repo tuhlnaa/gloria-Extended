@@ -12,12 +12,12 @@ phase: "pretrain"
 dataset:
   dataset_name: "chexpert_multimodal"  # Name of the dataset to use
   num_workers: 0                       # Number of data loading workers
-  fraction: 0.05 # 1.0  # 🛠️           # Train split ratio
+  fraction: 0.01 # 1.0  # 🛠️           # Train split ratio
   image: 
     imsize: 256                        # Target image size
   text: 
     word_num: 97                  # Maximum number of tokens after tokenization
-    captions_per_image: 10   # 🛠️ default: 5       # Maximum number of words to use per image
+    captions_per_image: 5   # 🛠️ default: 5       # Maximum number of words to use per image
     full_report: false            # Use full report (true) or single sentence (false)
     use_findings_section: false   # Prioritize findings section if available
   columns:                        # Column names in the CSV
@@ -80,9 +80,9 @@ criterion:
 
 # Learning rate schedule parameters
 lr_scheduler:
-  name: "LinearWarmupCosine"      # 🛠️ default: 'plateau'
+  name: 'plateau'      # 🛠️ default: 'plateau'
   epochs: 15           # 🛠️ default: 50         # Number of epochs to train
-  learning_rate: 1e-3  # 🛠️ default: 1e-4     # Learning rate for the optimizer
+  learning_rate: 1e-4  # 🛠️ default: 1e-4     # Learning rate for the optimizer
   warmup_ratio: 0.1               # Ratio of warmup steps
   patience: 7                     # Early stopping patience
   monitor: 'val_loss'  # This parameter specifies which metric to watch for making scheduler decisions. 
@@ -109,16 +109,17 @@ logging:
   
   # ClearML logger parameters (only required if logger="clearml")
   clearml:
-    project: null                 # ClearML project name
+    project: "gloria-Extended"    # ClearML project name
     task_id: false                # ClearML task ID to resume or boolean flag
     task_type: "training"         # ClearML task type
     tags: []                      # List of tags for ClearML task
   
-  experiment_name: "experiment12"  # Name for the experiment
+  experiment_name: "experiment13"  # Name for the experiment
 
 
 # Miscellaneous parameters
 misc:
+  monitor_metric: "val_loss"
   seed: 42                        # Random seed
   validation_freq: 100            # Frequency of validation (iterations)
   log_freq: 100                   # Frequency of logging metrics (iterations)

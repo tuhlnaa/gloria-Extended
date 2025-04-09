@@ -198,7 +198,17 @@ class GradientMonitor(nn.Module):
         clip_ratios = [after/before if before > 0 else 1.0 
                       for before, after in zip(self.grad_norms_before, self.grad_norms_after)]
         mean_clip_ratio = float(np.mean(clip_ratios))
+
+        # Count extreme values
+        exploding_threshold = 10.0  # Consider gradients above this threshold as potentially exploding
+        vanishing_threshold = 1e-3  # Consider gradients below this threshold as potentially vanishing
         
+        exploding_count = sum(1 for norm in self.grad_norms_before if norm > exploding_threshold)
+        vanishing_count = sum(1 for norm in self.grad_norms_before if 0 < norm < vanishing_threshold)
+        
+        exploding_ratio = 100 * exploding_count / len(self.grad_norms_before)
+        vanishing_ratio = 100 * vanishing_count / len(self.grad_norms_before)
+
         # Create metrics dictionary
         metrics = {
             f"{self.split}_grad_norm_before_mean": mean_before,
@@ -206,11 +216,19 @@ class GradientMonitor(nn.Module):
             f"{self.split}_grad_norm_before_max": max_before,
             f"{self.split}_grad_norm_after_max": max_after,
             f"{self.split}_grad_clip_ratio": mean_clip_ratio,
+            f"{self.split}_exploding_grad_ratio": exploding_ratio,
+            f"{self.split}_vanishing_grad_ratio": vanishing_ratio,
         }
         
         # Print summary
         print(f"Gradient stats - Before: {mean_before:.4f} (max: {max_before:.4f}), "
               f"After: {mean_after:.4f} (max: {max_after:.4f}), "
               f"Clip ratio: {mean_clip_ratio:.4f}")
+        
+        # Alert the user about potential issues
+        if exploding_ratio > 5:
+            print(f"⚠️ WARNING: Potential exploding gradients detected ({exploding_ratio*100:.1f}% of batches)")
+        if vanishing_ratio > 5:
+            print(f"⚠️ WARNING: Potential vanishing gradients detected ({vanishing_ratio*100:.1f}% of batches)")
         
         return metrics

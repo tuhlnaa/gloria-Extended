@@ -6,6 +6,7 @@ from omegaconf import OmegaConf
 from typing import Dict, Tuple, Any, List
 
 from gloria import builder
+from gloria.utils.losses import GloriaLoss
 #from .. import utils
 
 
@@ -23,7 +24,7 @@ class GLoRIAModel:
         self.lr = config.lr_scheduler.learning_rate
         self.device = config.device.device
         self.train_loader = train_loader
-        print('bbbbb:', len(self.train_loader))
+
         # Initialize the appropriate model based on configuration
         self.model = self._initialize_model()
         self.model.to(self.device)
@@ -34,6 +35,9 @@ class GLoRIAModel:
         self.scheduler = None
         self.setup_optimization()
 
+        # Initialize Loss module
+        self.criterion = GloriaLoss(config)
+
 
     def _initialize_model(self) -> torch.nn.Module:
         """Initialize the GLoRIA model based on configuration."""
@@ -41,13 +45,7 @@ class GLoRIAModel:
     
 
     def setup_optimization(self) -> None:
-        """
-        Set up optimizer and learning rate scheduler.
-        
-        Args:
-            datamodule: Optional data module for scheduler steps
-        """
-        print('ccccc:', len(self.train_loader))
+        """Set up optimizer and learning rate scheduler."""
         self.optimizer = builder.build_optimizer(self.config, self.lr, self.model)
         self.scheduler = builder.build_scheduler(self.config, self.optimizer, self.train_loader)
 
@@ -72,11 +70,20 @@ class GLoRIAModel:
             
             self.optimizer.zero_grad()
             
-            # Forward pass and loss calculation
+            # Forward pass
             img_emb_local, img_emb_global, text_emb_local, text_emb_global, sents = self.model(batch)
-            loss_result = self.model.compute_loss(
-                img_emb_local, img_emb_global, text_emb_local, text_emb_global, sents
+
+            # Compute loss
+            loss_result = self.criterion(
+                img_emb_local=img_emb_local,
+                img_emb_global=img_emb_global,
+                text_emb_local=text_emb_local,
+                text_emb_global=text_emb_global,
+                sents=sents
             )
+            # loss_result = self.model.compute_loss(
+            #     img_emb_local, img_emb_global, text_emb_local, text_emb_global, sents
+            # )
             
             # Backward pass
             loss_result.total_loss.backward()
@@ -85,7 +92,7 @@ class GLoRIAModel:
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.config.optimizer.clip_grad)
 
             self.optimizer.step()
-            self.scheduler.step()
+            # self.scheduler.step() # 🛠️
             
             # Update all metrics
             metrics_sum["train_loss"] += loss_result.total_loss.item()
