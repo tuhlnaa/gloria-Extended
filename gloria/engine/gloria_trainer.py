@@ -1,53 +1,60 @@
-import torch
 
+import torch
+import torch.nn as nn
+
+from pathlib import Path
 from omegaconf import OmegaConf
-from typing import Dict, Tuple, Any, List
+from tqdm.auto import tqdm
+from typing import Any, Dict, List, Tuple, Union
 from torch.utils.data import DataLoader
 
 from gloria import builder
-from gloria.utils.losses import GloriaLoss
-from gloria.utils.metrics import GloriaMetrics, GradientMonitor
+from gloria.utils.metrics import ClassificationMetrics, GloriaMetrics, GradientMonitor
 from gloria.utils.utils import plot_attn_maps
 
-
-class GLoRIAModel:
+class GloriaTrainer:
     """
     Pure PyTorch model for GLoRIA pretraining.
     
     GLoRIA (Global-Local Representation Learning Framework) is designed for 
     multimodal medical image recognition with label efficiency.
     """
-    
-    def __init__(self, config: OmegaConf, train_loader) -> None:
-        """Initialize the GLoRIA model."""
+
+    def __init__(self, config: OmegaConf, train_loader: DataLoader):
         self.config = config
-        self.lr = config.lr_scheduler.learning_rate
+        self.learning_rate = config.lr_scheduler.learning_rate
         self.device = config.device.device
         self.train_loader = train_loader
+        
+        # Initialize the model
+        self.model = self._initialize_model().to(self.device)
+        print(f"Using model: [{type(self.model).__name__}]")
 
-        # Initialize the appropriate model based on configuration
-        self.model = self._initialize_model()
-        self.model.to(self.device)
-        print(f"Used [{type(self.model).__name__}]")
-
-        # Initialize optimizer and scheduler
+        # Initialize loss function
+        self.criterion = builder.build_loss(config)
+        
+        # Optimization components (initialized later)
         self.optimizer = None
         self.scheduler = None
-        self.setup_optimization()
-
-        # Initialize Loss module
-        self.criterion = GloriaLoss(config)
 
 
     def _initialize_model(self) -> torch.nn.Module:
-        """Initialize the GLoRIA model based on configuration."""
+        """Initialize the model based on configuration."""
         return builder.build_gloria_model(self.config)
-    
+
 
     def setup_optimization(self) -> None:
         """Set up optimizer and learning rate scheduler."""
-        self.optimizer = builder.build_optimizer(self.config, self.lr, self.model)
-        self.scheduler = builder.build_scheduler(self.config, self.optimizer, self.train_loader)
+        self.optimizer = builder.build_optimizer(
+            self.config, 
+            self.learning_rate, 
+            self.model
+        )
+        self.scheduler = builder.build_scheduler(
+            self.config, 
+            self.optimizer, 
+            self.train_loader
+        )
 
 
     def train_epoch(self, train_loader: DataLoader, epoch: int) -> Dict[str, float]:
@@ -60,7 +67,7 @@ class GLoRIAModel:
         grad_monitor = GradientMonitor(split='train')
         grad_monitor.reset()
 
-        for batch_idx, batch in enumerate(train_loader):
+        for batch_idx, batch in enumerate(tqdm(train_loader, desc=f"Train Epoch: {epoch}")):
             batch = self._prepare_batch(batch)
             
             self.optimizer.zero_grad()
@@ -113,40 +120,6 @@ class GLoRIAModel:
         return combined_metrics
 
 
-
-    def validate(self, val_loader: DataLoader) -> Dict[str, float]:
-        """Validate the model on the validation set."""
-        self.model.eval()
-
-        # Create metrics tracker
-        metrics = GloriaMetrics(split='val')
-        metrics.reset()
-        
-        with torch.no_grad():
-            for batch in val_loader:
-                batch = self._prepare_batch(batch)
-                
-                # Forward pass
-                img_emb_local, img_emb_global, text_emb_local, text_emb_global, sents = self.model(batch)
-
-                # Compute loss
-                loss_result = self.criterion(
-                    img_emb_local=img_emb_local,
-                    img_emb_global=img_emb_global,
-                    text_emb_local=text_emb_local,
-                    text_emb_global=text_emb_global,
-                    sents=sents
-                )
-                    
-                # Update metrics
-                metrics.update(loss_result)
-                
-        # Compute and return metrics for the validation set
-        computed_metrics = metrics.compute()
-        
-        return computed_metrics
-    
-
     def _prepare_batch(self, batch: Dict[str, Any]) -> Dict[str, Any]:
         """Move batch data to the correct device."""
         prepared_batch = {}
@@ -158,3 +131,20 @@ class GLoRIAModel:
                 prepared_batch[key] = value
                 
         return prepared_batch
+
+
+    def resume_from_checkpoint(self, checkpoint_path: Union[str, Path]) -> None:
+        """Resume training from checkpoint."""
+        checkpoint = torch.load(checkpoint_path, map_location=self.device)
+        
+        self.model.load_state_dict(checkpoint["model_state_dict"])
+        self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+
+        if self.scheduler is not None and "scheduler_state_dict" in checkpoint:
+            self.scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+
+        start_epochs = checkpoint.get("epochs", 0)
+        best_val_loss = checkpoint.get("best_val_loss", float("inf"))
+        best_val_metric = checkpoint.get("best_metrics", float("inf"))
+
+        return start_epochs, best_val_metric, best_val_loss

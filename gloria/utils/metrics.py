@@ -5,7 +5,6 @@ import numpy as np
 from typing import Dict, Optional
 from torchmetrics.classification import MultilabelAUROC, MultilabelAveragePrecision
 
-
 class ClassificationMetrics(nn.Module):
     """A PyTorch module for computing classification metrics using torchmetrics."""
 
@@ -128,6 +127,95 @@ class ClassificationMetrics(nn.Module):
         if compute_metrics:
             return self.compute()
         return None
+
+
+class GloriaMetrics(nn.Module):
+    """A PyTorch module for computing GLoRIA metrics."""
+
+    def __init__(self, split: str = 'val'):
+        """
+        Initialize the GLoRIA metrics tracker.
+
+        Args:
+            split: The data split ('train', 'val', or 'test')
+        """
+        super().__init__()
+        self.split = split
+        
+        # Reset to initialize states
+        self.reset()
+
+
+    def reset(self):
+        """Reset all accumulated states for a new computation cycle."""
+        self.metrics_sum = {
+            f"{self.split}_loss": 0.0,
+            f"{self.split}_global_loss": 0.0,
+            f"{self.split}_local_loss": 0.0,
+            f"{self.split}_local_loss_i2t": 0.0,
+            f"{self.split}_local_loss_t2i": 0.0,
+            f"{self.split}_global_loss_i2t": 0.0,
+            f"{self.split}_global_loss_t2i": 0.0
+        }
+        self.num_batches = 0
+
+
+    def update(self, loss_result) -> None:
+        """
+        Update states with loss results from a new batch.
+        
+        Args:
+            loss_result: The loss result object containing all relevant losses
+        """
+        self.metrics_sum[f"{self.split}_loss"] += loss_result.total_loss.item()
+        self.metrics_sum[f"{self.split}_global_loss"] += loss_result.global_loss.item()
+        self.metrics_sum[f"{self.split}_local_loss"] += loss_result.local_loss.item()
+        self.metrics_sum[f"{self.split}_local_loss_i2t"] += loss_result.local_loss_image_to_text.item()
+        self.metrics_sum[f"{self.split}_local_loss_t2i"] += loss_result.local_loss_text_to_image.item() 
+        self.metrics_sum[f"{self.split}_global_loss_i2t"] += loss_result.global_loss_image_to_text.item()
+        self.metrics_sum[f"{self.split}_global_loss_t2i"] += loss_result.global_loss_text_to_image.item()
+        
+        self.num_batches += 1
+
+
+    def compute(self) -> Dict[str, float]:
+        """Compute final metrics from accumulated data."""
+        if self.num_batches == 0:
+            print(f"Warning: No data accumulated")
+            return {key: 0.0 for key in self.metrics_sum.keys()}
+        
+        # Calculate mean metrics
+        metrics = {key: value / self.num_batches for key, value in self.metrics_sum.items()}
+        
+        # Print detailed metrics summary
+        print(f"{self.split.capitalize()} metrics - "
+              f"Total Loss: {metrics[f'{self.split}_loss']:.4f}, "
+              f"Global Loss: {metrics[f'{self.split}_global_loss']:.4f}, "
+              f"Local Loss: {metrics[f'{self.split}_local_loss']:.4f}")
+        
+        return metrics
+
+
+    def forward(
+            self, 
+            loss_result,
+            compute_metrics: bool = False
+        ) -> Optional[Dict[str, float]]:
+        """
+        Forward pass that updates metrics and optionally computes them.
+
+        Args:
+            loss_result: The loss result object containing all relevant losses
+            compute_metrics: Whether to compute and return metrics after update
+
+        Returns:
+            Optional[Dict[str, float]]: Dictionary of metrics if compute_metrics is True, else None
+        """
+        self.update(loss_result)
+        
+        if compute_metrics:
+            return self.compute()
+        return None
     
 
 class GradientMonitor(nn.Module):
@@ -206,8 +294,8 @@ class GradientMonitor(nn.Module):
         exploding_count = sum(1 for norm in self.grad_norms_before if norm > exploding_threshold)
         vanishing_count = sum(1 for norm in self.grad_norms_before if 0 < norm < vanishing_threshold)
         
-        exploding_ratio = 100 * exploding_count / len(self.grad_norms_before)
-        vanishing_ratio = 100 * vanishing_count / len(self.grad_norms_before)
+        exploding_ratio = exploding_count / len(self.grad_norms_before)
+        vanishing_ratio = vanishing_count / len(self.grad_norms_before)
 
         # Create metrics dictionary
         metrics = {
@@ -220,15 +308,10 @@ class GradientMonitor(nn.Module):
             f"{self.split}_vanishing_grad_ratio": vanishing_ratio,
         }
         
-        # Print summary
-        print(f"Gradient stats - Before: {mean_before:.4f} (max: {max_before:.4f}), "
-              f"After: {mean_after:.4f} (max: {max_after:.4f}), "
-              f"Clip ratio: {mean_clip_ratio:.4f}")
-        
         # Alert the user about potential issues
-        if exploding_ratio > 5:
+        if exploding_ratio > 0.05:
             print(f"⚠️ WARNING: Potential exploding gradients detected ({exploding_ratio*100:.1f}% of batches)")
-        if vanishing_ratio > 5:
+        if vanishing_ratio > 0.05:
             print(f"⚠️ WARNING: Potential vanishing gradients detected ({vanishing_ratio*100:.1f}% of batches)")
         
         return metrics

@@ -61,20 +61,20 @@ model:
   gloria: 
       local_loss_weight: 1.0
       global_loss_weight: 1.0
-      temp_attention: 4.0
-      temp_similarity: 5.0
-      temp_loss: 10.0
+      temp_attention: 1.0    # 🛠️ default: 4.0
+      temp_similarity: 1.0   # 🛠️ default: 5.0
+      temp_loss: 1.0         # 🛠️ default: 10.0
 
 # Optimizer parameters
 optimizer:
   name: "Adam"
   weight_decay: 1e-6 # 0.01  # 🛠️     # Weight decay factor
-  clip_grad: 0.25    # 1.0 # 🛠️
+  clip_grad: 1.0    # 1.0    # 🛠️ default: 0.25
 
 
 # Regularization parameters
 criterion: 
-  name: "BCE"
+  name: "GloriaLoss"   # 🛠️ default: "BCE" 
   class_weights: null
 
 
@@ -94,7 +94,7 @@ lr_scheduler:
 # Device & distributed training parameters
 device:
   amp: "no"                       # Automatic mixed precision: "no", "fp16", "bf16"
-  device: "cuda:1"                # Device to use: "cpu", "cuda:0", etc.
+  device: "cuda:0"                # Device to use: "cpu", "cuda:0", etc.
 
 
 # Logging parameters
@@ -114,7 +114,7 @@ logging:
     task_type: "training"         # ClearML task type
     tags: []                      # List of tags for ClearML task
   
-  experiment_name: "experiment13"  # Name for the experiment
+  experiment_name: "experiment14"  # Name for the experiment
 
 
 # Miscellaneous parameters

@@ -18,6 +18,8 @@ from torch.optim.lr_scheduler import (
 )
 from flash.core.optimizers import LinearWarmupCosineAnnealingLR
 
+from gloria.utils.losses import GloriaLoss
+
 from . import models
 from . import lightning
 from . import datasets
@@ -192,9 +194,8 @@ def build_loss(config: Dict[str, Any]) -> nn.Module:
     loss_functions = {
         "DiceLoss": lambda: loss.segmentation_loss.DiceLoss(),
         "FocalLoss": lambda: loss.segmentation_loss.FocalLoss(),
-        "MixedLoss": lambda: loss.segmentation_loss.MixedLoss(
-            alpha=config.criterion.alpha
-        ),
+        "MixedLoss": lambda: loss.segmentation_loss.MixedLoss(alpha=config.criterion.alpha),
+        "GloriaLoss": lambda: GloriaLoss(config),
         "BCE": lambda: _create_bce_loss(config),
     }
     

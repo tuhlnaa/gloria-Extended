@@ -350,3 +350,22 @@ def build_attention_images(
         print("Failed to concatenate visualization images")
         return None, processed_sentences
     
+
+def plot_attn_maps(config, attn_maps, imgs, sents, epoch_idx=0, batch_idx=0):
+
+    img_set, _ = build_attention_images(
+        imgs,
+        attn_maps,
+        num_visualizations=config.misc.nvis,
+        random_selection=config.misc.rand_vis,
+        sentences=sents,
+    )
+
+    if img_set is not None:
+        im = Image.fromarray(img_set)
+        fullpath = (
+            f"{config.output_dir}/"
+            f"attention_maps_epoch{epoch_idx}_"
+            f"{batch_idx}.png"
+        )
+        im.save(fullpath)

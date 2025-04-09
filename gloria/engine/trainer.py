@@ -1,15 +1,9 @@
-"""
-Training module for GLoRIA model and other classification models.
 
-This module handles the training loop and related functionality for image classification
-models, with special support for GLoRIA pre-trained models.
-"""
-import os
-from pathlib import Path
-from omegaconf import OmegaConf
 import torch
 import torch.nn as nn
 
+from pathlib import Path
+from omegaconf import OmegaConf
 from tqdm.auto import tqdm
 from typing import Dict, List, Tuple, Union
 from torch.utils.data import DataLoader
@@ -20,7 +14,7 @@ from gloria.utils.metrics import ClassificationMetrics, GradientMonitor
 class Trainer:
     """Trainer class for image classification models."""
 
-    def __init__(self, config: OmegaConf, train_loader):
+    def __init__(self, config: OmegaConf, train_loader: DataLoader):
         self.config = config
         self.learning_rate = config.lr_scheduler.learning_rate
         self.device = config.device.device
