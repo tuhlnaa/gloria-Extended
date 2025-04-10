@@ -108,17 +108,17 @@ def run_training_pipeline(config: OmegaConf) -> Dict[str, float]:
         best_val_metric = float("-inf")
 
     # Set up training components
-    # trainer = Trainer(config, dataloaders['train'])  # 🛠️
-    # validator = Validator(config, trainer.model, trainer.criterion) # 🛠️
-    trainer = GloriaTrainer(config, dataloaders['train'])
-    validator = GloriaValidator(config, trainer.model, trainer.criterion)
+    trainer = Trainer(config, dataloaders['train'])  # 🛠️
+    validator = Validator(config, trainer.model, trainer.criterion) # 🛠️
+    # trainer = GloriaTrainer(config, dataloaders['train'])
+    # validator = GloriaValidator(config, trainer.model, trainer.criterion)
     trainer.setup_optimization()
 
     # Resume if specified
     if config.model.resume:
         start_epochs, best_val_metrics = trainer.resume_from_checkpoint(config.model.resume)
         best_val_metric = best_val_metrics[config.misc.monitor_metric]
-    quit()
+
     # Print training configuration
     LoggingManager.print_training_config(
         args=config,
@@ -147,12 +147,12 @@ def run_training_pipeline(config: OmegaConf) -> Dict[str, float]:
         # Early stopping check
         if hasattr(config.lr_scheduler, 'patience'):
             if (val_metrics[config.misc.monitor_metric] > best_val_metric and config.misc.monitor_metric != "val_loss") or (val_metrics[config.misc.monitor_metric] < best_val_metric and config.misc.monitor_metric == "val_loss"):
+                patience_counter = 0
+            else:
                 patience_counter += 1
                 if patience_counter >= config.lr_scheduler.patience:
                     print("Early stopping triggered")
                     break
-            else:
-                patience_counter = 0
 
         # Save best model
         if (val_metrics[config.misc.monitor_metric] > best_val_metric and config.misc.monitor_metric != "val_loss") or (val_metrics[config.misc.monitor_metric] < best_val_metric and config.misc.monitor_metric == "val_loss"):

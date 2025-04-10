@@ -252,7 +252,7 @@ def zero_shot_classification(
     
     # Normalize similarities across classes (only for batches with multiple images)
     if similarity_matrix.shape[0] > 1:
-        similarity_matrix = utils.normalize(similarity_matrix)
+        similarity_matrix = utils.normalize_similarities(similarity_matrix)
     
     # Convert to DataFrame for easier handling
     return pd.DataFrame(similarity_matrix, columns=class_names)

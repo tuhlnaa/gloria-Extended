@@ -68,7 +68,7 @@ lr_scheduler:
   epochs: 50          # 🛠️ default: 50      # Number of epochs to train
   learning_rate: 1e-4 # 1.0e-3 # 🛠️      # Learning rate for the optimizer
   warmup_ratio: 0.1               # Ratio of warmup steps
-  patience: 7                     # Early stopping patience
+  patience: 10         # 🛠️ default: 7    # Early stopping patience
   monitor: 'val_loss'  # This parameter specifies which metric to watch for making scheduler decisions. 
   interval: 'epoch'    # This determines when the scheduler should be called. 
   val_check_interval: null

@@ -81,6 +81,25 @@ def build_gloria_from_checkpoint(checkpoint_path: str):
     return gloria_model
 
 
+def normalize_model_state_dict(state_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    """Normalizes state dictionary keys for compatibility."""
+    
+    if "state_dict" in state_dict.keys():
+        normalized_dict = {}
+        for key, value in state_dict["state_dict"].items():
+            # Remove 'gloria.' prefix if present
+            new_key = key.split("gloria.")[-1]
+            normalized_dict[new_key] = value
+            
+        # Remove problematic keys that might cause issues during loading
+        if "text_encoder.model.embeddings.position_ids" in normalized_dict:
+            del normalized_dict["text_encoder.model.embeddings.position_ids"]
+
+        return normalized_dict
+    else:
+        return state_dict["model_state_dict"]
+    
+
 def build_image_model(config: Dict[str, Any]):
     """Build the appropriate image model based on the configuration phase."""
     phase = config.phase.lower()
@@ -88,9 +107,10 @@ def build_image_model(config: Dict[str, Any]):
 
     if config.model.transfer_checkpoint is not None:
         checkpoint = torch.load(config.model.transfer_checkpoint, map_location="cpu")
+        model_state_dict = normalize_model_state_dict(checkpoint)
 
         gloria_model = build_gloria_model(config)
-        gloria_model.load_state_dict(checkpoint["model_state_dict"])
+        gloria_model.load_state_dict(model_state_dict)
 
         # Load pretrained image encoder
         image_encoder = copy.deepcopy(gloria_model.img_encoder)
@@ -99,7 +119,7 @@ def build_image_model(config: Dict[str, Any]):
         # Extract required parameters from config
         num_classes = config.model.vision.num_targets
         feature_dim = FEATURE_DIMENSIONS[config.model.vision.model_name]
-        freeze_encoder = config.model.vision.freeze_encoder 
+        freeze_encoder = config.model.vision.freeze_cnn 
 
         # Instantiate GloriaImageClassifier with the correct parameters
         return GloriaImageClassifier(

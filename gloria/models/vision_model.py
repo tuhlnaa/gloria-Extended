@@ -250,4 +250,4 @@ class GloriaImageClassifier(ImageClassifier):
         if freeze_encoder:
             for param in self.img_encoder.parameters():
                 param.requires_grad = False
-            print["[bold blue]Training only the classifier head.[/bold blue]"]
+            print("[bold blue]Training only the classifier head.[/bold blue]")

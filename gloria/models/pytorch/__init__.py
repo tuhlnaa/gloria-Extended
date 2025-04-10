@@ -5,6 +5,6 @@ from .classification import ClassificationModel
 PYTORCH_MODULES = {
     "pretrain": GLoRIAModel,
     "classification": ClassificationModel,
-    "gloria_classification": GLoRIAModel,
+    "gloria_classification": ClassificationModel,
     #"segmentation": SegmentationModel,
 }

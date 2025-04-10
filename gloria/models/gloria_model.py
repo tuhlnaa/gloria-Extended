@@ -10,6 +10,8 @@ from sklearn import metrics
 from typing import Dict, List, Tuple, Union, Optional
 
 from PIL import Image
+
+from data.dataset import build_transformation
 from .. import builder
 from .. import loss
 from .. import utils
@@ -319,7 +321,7 @@ class GLoRIA(nn.Module):
             imgs,
             attn_maps,
             # max_word_num=None,
-            # max_word_num=self.config.data.text.word_num,  # TODO: remove
+            # max_word_num=self.config.dataset.text.word_num,  # TODO: remove
             num_visualizations=self.config.misc.nvis,
             random_selection=self.config.misc.rand_vis,
             sentences=sents,
@@ -362,7 +364,7 @@ class GLoRIA(nn.Module):
                 return_tensors="pt",
                 truncation=True,
                 padding="max_length",
-                max_length=self.config.data.text.word_num,
+                max_length=self.config.dataset.text.word_num,
             )
             
             # Add word representations
@@ -460,18 +462,10 @@ class GLoRIA(nn.Module):
     
     
     def process_images(self, paths, device):
-        """
-        Process images for model input.
-        
-        Args:
-            paths: String path to single image or list of image paths
-            device: PyTorch device to load tensors to
-            
-        Returns:
-            torch.Tensor: Batch of processed images on specified device
-        """
-        transform = builder.build_transformation(self.config, split="test")
-        
+        """Process images for model input."""
+        # transform = builder.build_transformation(self.config, split="test")
+        transform = build_transformation(self.config, split="test")
+
         # Ensure paths is a list
         if isinstance(paths, str):
             paths = [paths]
@@ -483,7 +477,7 @@ class GLoRIA(nn.Module):
             img = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
             
             # Resize and transform image
-            img = self._resize_image(img, self.config.data.image.imsize)
+            img = self._resize_image(img, self.config.dataset.image.imsize)
             img_rgb = Image.fromarray(img).convert("RGB")
             img_tensor = transform(img_rgb)
             processed_images.append(img_tensor)

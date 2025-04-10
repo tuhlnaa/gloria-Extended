@@ -2,7 +2,7 @@
 # All paths will be converted to Path objects automatically
 
 # Required parameters (must be provided via command line or config file)
-output_dir: "./output/transfer-classification_experiment1"  # Path to save model and results
+output_dir: "./output/transfer-classification_experiment2"  # Path to save model and results
 data_dir: "D:/Kai/DATA_Set_2/X-ray/CheXpert-v1.0-small"    # Path to the dataset directory
 csv_path: null    # Path to the CSV file containing class ID to name mapping
 
@@ -41,7 +41,8 @@ model:
   batch_size: 64                  # Input batch size for training
   resume: null                    # Resume full model and optimizer state from checkpoint
   pretrained: true                # Use pretrained model
-  transfer_checkpoint: "E:/Kai_2/CODE_Repository/gloria-Extended/output/checkpoint_epoch_20.pth"       # Transfer learning
+  # transfer_checkpoint: "E:/Kai_2/CODE_Repository/gloria-Extended/output/checkpoint_epoch_20.pth"  # Transfer learning
+  transfer_checkpoint: "D:/Kai/pretrained/Gloria/chexpert_resnet50.ckpt"  # Transfer learning
   vision:
       model_name: 'resnet_50'
       freeze_cnn: true
@@ -82,7 +83,7 @@ lr_scheduler:
   epochs: 50          # 🛠️ default: 50      # Number of epochs to train
   learning_rate: 1e-4 # 1.0e-3 # 🛠️      # Learning rate for the optimizer
   warmup_ratio: 0.1               # Ratio of warmup steps
-  patience: 7                     # Early stopping patience
+  patience: 10         # 🛠️ default: 7    # Early stopping patience
   monitor: 'val_loss'  # This parameter specifies which metric to watch for making scheduler decisions. 
   interval: 'epoch'    # This determines when the scheduler should be called. 
   val_check_interval: null
@@ -112,10 +113,14 @@ logging:
     task_type: "training"                      # ClearML task type
     tags: []                                   # List of tags for ClearML task
   
-  experiment_name: "transfer-gloria1"  # Name for the experiment
+  experiment_name: "transfer-gloria2"  # Name for the experiment
 
 
 # Miscellaneous parameters
 misc:
-  seed: 42                        # Random seed
-  save_freq: 1                    # Frequency of saving checkpoints (epochs)
+  monitor_metric: "val_mean_auroc"
+  seed: 42                      # Random seed
+  save_freq: 1                  # Frequency of saving checkpoints (epochs)
+  visualization_interval: 1000  # Visualize attention maps periodically (iterations)
+  nvis: 8                       # Maximum number of examples to include in the visualization
+  rand_vis: false               # If True, randomly select images; if False, use the first N images

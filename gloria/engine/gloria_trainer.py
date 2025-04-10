@@ -142,16 +142,9 @@ class GloriaTrainer:
             print("[bold blue]Successfully created a complete model, transferring to current model...[/bold blue]")
         else:
             raise ValueError(f"Could not create a complete model with both encoders")
-
-        # # First analyze the checkpoint to understand mismatches
-        # print("Analyzing checkpoint for potential mismatches...")
-        # analysis = analyze_checkpoint_mismatch(self.model, checkpoint_path)
         
-        # # Try loading with remapping
-        # print("\nAttempting to load checkpoint with key remapping...")
-        # loaded_keys, missing_keys = load_checkpoint_with_remapping(self.model, checkpoint_path)
-        
-        self.model.load_state_dict(checkpoint["model_state_dict"])
+        model_state_dict = builder.normalize_model_state_dict(checkpoint)
+        self.model.load_state_dict(model_state_dict)
         self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 
         if self.scheduler is not None and "scheduler_state_dict" in checkpoint:

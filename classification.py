@@ -1,21 +1,28 @@
 import os
-import gloria
-import pandas as pd 
 
-device = "cuda:1"
-CHEXPERT_5x200 = r"pretrained\chexpert_5x200.csv"
-img_dir = r"D:\Kai\DATA_Set_2\X-ray\CheXpert-v1.0"
+import torch
+from configs.config import parse_args
+import gloria
+import pandas as pd
+
+from gloria import builder 
+
+CHEXPERT_5x200 = r"D:\Kai\pretrained\Gloria\chexpert_5x200.csv"
+checkpoint_path = r"D:\Kai\pretrained\Gloria\chexpert_resnet50.ckpt"
+config = parse_args()
 
 df = pd.read_csv(CHEXPERT_5x200)
-df = df[0:5]
-
-full_paths = [os.path.join(img_dir, path.replace('CheXpert-v1.0/', '')) for path in df['Path']]
+df = df[0:100]
+full_paths = [os.path.join(config.data_dir, path.replace('CheXpert-v1.0/', '')) for path in df['Path']]
 
 # load model
-gloria_model = gloria.load_gloria(device=device)
+gloria_model = builder.build_gloria_model(config).to(config.device.device)
+
+checkpoint = torch.load(checkpoint_path, map_location=config.device.device)
+model_state_dict = builder.normalize_model_state_dict(checkpoint)
+gloria_model.load_state_dict(model_state_dict)
 
 class_prompts = gloria.generate_chexpert_class_prompts()
-print(class_prompts)
 """
 {
 'Atelectasis': ['minimal residual atelectasis at the left lung zone', 'minimal subsegmental atelectasis at the left lung base', ' trace atelectasis at the mid lung zone', 'mild bandlike atelectasis at the lung bases', 'minimal bandlike atelectasis at the right lung base'], 
@@ -26,26 +33,38 @@ print(class_prompts)
 """
 
 # process input images and class prompts 
-processed_txt = gloria_model.process_class_prompts(class_prompts, device)
-processed_imgs = gloria_model.process_images(full_paths, device)
+processed_txt = gloria_model.process_class_prompts(class_prompts, config.device.device)
+processed_imgs = gloria_model.process_images(full_paths, config.device.device)
 print(processed_imgs.shape)  # torch.Size([5, 3, 224, 224])
 
 # zero-shot classification on 1000 images
 similarities = gloria.zero_shot_classification(
     gloria_model, processed_imgs, processed_txt)
 print(similarities)
-#      Atelectasis  Cardiomegaly  Consolidation     Edema  Pleural Effusion
-# 0       1.371477     -0.416303      -1.023546 -1.460464          0.145969
-# 1       1.550474      0.277534       1.743613  0.187523          1.166638
-# ..           ...           ...            ...       ...               ...
+"""
+   Atelectasis  Cardiomegaly  Consolidation     Edema  Pleural Effusion
+0      0.14921      0.213611       0.165815  0.153986          0.142162
+"""
 
 labels = df[gloria.constants.CHEXPERT_COMPETITION_TASKS].to_numpy().argmax(axis=1)
 pred = similarities[gloria.constants.CHEXPERT_COMPETITION_TASKS].to_numpy().argmax(axis=1)
 acc = len(labels[labels == pred]) / len(labels) 
-print(acc) # 0.17
 
+# print(df[gloria.constants.CHEXPERT_COMPETITION_TASKS].to_numpy())
+# # [[1. 0. 0. 0. 0.]]
+# print(labels)
+# # [0]
+# print(similarities[gloria.constants.CHEXPERT_COMPETITION_TASKS].to_numpy())
+# # [[0.1492098  0.21361108 0.16581504 0.15398553 0.14216161]]
+# print(pred)
+# # [1]
+print(acc)
+# 0.0
+# 0~100 :0.25
        
 """
+python classification.py --config configs\default_gloria_config.yaml
+
 C:/Users/<user>/.cache/huggingface/hub/models--emilyalsentzer--Bio_ClinicalBERT/snapshots/d5892b39a4adaed74b92212a44081509db72f87b/pytorch_model.bin
 C:/Users/<user>/.cache/huggingface/hub/models--emilyalsentzer--Bio_ClinicalBERT/snapshots/587607fe30b99405d51a27a47254de2b66763a8f/model.safetensors
 C:/Users/<user>/.cache/huggingface/hub/models--emilyalsentzer--Bio_ClinicalBERT/snapshots/d5892b39a4adaed74b92212a44081509db72f87b/vocab.txt
