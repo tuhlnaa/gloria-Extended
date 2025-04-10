@@ -17,11 +17,16 @@ We propose an attentionbased framework for learning global and local representat
 > Stanford University <br>
 > Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV), 2021 <br>
 
+<br>
+
 ## Approach
 
-![GLoRIA framework](https://github.com/tuhlnaa/gloria-Extended/blob/main/assets/GLoRIA%20framework.png)
-
-![GLoRIA overview](https://github.com/tuhlnaa/gloria-Extended/blob/main/assets/GLoRIA%20overview.png)
+<p align="center">
+  <img src="https://github.com/tuhlnaa/gloria-Extended/blob/main/assets/GLoRIA%20framework.png" width="60%" alt="GLoRIA framework">
+</p>
+<p align="center">
+  <img src="https://github.com/tuhlnaa/gloria-Extended/blob/main/assets/GLoRIA%20overview.png" width="100%" alt="GLoRIA overview">
+</p>
 
 <br>
 
