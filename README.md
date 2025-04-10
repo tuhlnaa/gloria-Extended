@@ -1,8 +1,18 @@
 # GLoRIA: A Multimodal Global-Local Representation Learning Framework for Label-efficient Medical Image Recognition
 
-GLoRIA (**G**lobal-**Lo**cal **R**epresentations for **I**mages using **A**ttenion) is a multimodal representation learning framework for label-efficient medical image recognition. Our results demonstrate high-performance and label-efficiency for image-text retrieval, classification (finetuning and zeros-shot settings), and segmentation on different medical imaging datasets. 
+[![PyTorch](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python)](https://pytorch.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.3%2B-EE4C2C?logo=pytorch)](https://pytorch.org/)
+[![GitHub repo size](https://img.shields.io/github/repo-size/tuhlnaa/gloria-Extended?label=Repo%20size)](https://github.com/tuhlnaa/gloria-Extended)
 
->**[GLoRIA Manuscript](https://openaccess.thecvf.com/content/ICCV2021/html/Huang_GLoRIA_A_Multimodal_Global-Local_Representation_Learning_Framework_for_Label-Efficient_Medical_ICCV_2021_paper.html)** \
+<br>
+
+## Abstract
+
+[![arXiv](https://img.shields.io/badge/IEEE-ICCV48922.2021.00391-00629B?logo=ieee)](https://doi.org/10.1109/ICCV48922.2021.00391)
+
+We propose an attentionbased framework for learning global and local representations by contrasting image sub-regions and words in the paired report. In addition, we propose methods to leverage the learned representations for various downstream medical image recognition tasks with limited labels. Our results demonstrate high-performance and label-efficiency for image-text retrieval, classification (finetuning and zeros-shot settings), and segmentation on different datasets.
+
+> **GLoRIA: A Multimodal Global-Local Representation Learning Framework for Label-efficient Medical Image Recognition** \
 > Shih-Cheng Huang (Mars), Liyue Shen, Matthew P. Lungren, Serena Yeung <br> 
 > Stanford University <br>
 > Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV), 2021 <br>
