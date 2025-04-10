@@ -28,12 +28,3 @@ print("\nOutput shape:", output.shape)
 # Print detailed model summary
 summary(model, input_data=(x,))
 
-"""
-Used PretrainedImageClassifier
-
-Traceback (most recent call last):
-  File "e:\Kai_2\CODE_Repository\gloria-Extended\test\print_ClassificationModel.py", line 20, in <module>
-    output = model(x)
-             ^^^^^^^^
-TypeError: 'ClassificationModel' object is not callable
-"""

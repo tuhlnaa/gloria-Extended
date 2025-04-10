@@ -2,15 +2,15 @@
 # All paths will be converted to Path objects automatically
 
 # Required parameters (must be provided via command line or config file)
-output_dir: "./output/experiment2"  # Path to save model and results
-data_dir: "D:\\Kai\\DATA_Set_2\\X-ray\\CheXpert-v1.0-small"    # Path to the dataset directory
+output_dir: "./output/transfer-classification_experiment1"  # Path to save model and results
+data_dir: "D:/Kai/DATA_Set_2/X-ray/CheXpert-v1.0-small"    # Path to the dataset directory
 csv_path: null    # Path to the CSV file containing class ID to name mapping
 
 train_csv: "train.csv"  # Path to the specific split CSV file
 valid_csv: "valid.csv"
 test_csv: "valid.csv"   # Using validation set as test set (test set labels hidden)
 
-phase: "classification"
+phase: 'pretrain'
 
 # Dataset parameters
 dataset:
@@ -41,12 +41,26 @@ model:
   batch_size: 64                  # Input batch size for training
   resume: null                    # Resume full model and optimizer state from checkpoint
   pretrained: true                # Use pretrained model
-  transfer_checkpoint: null       # Transfer learning
+  transfer_checkpoint: "E:/Kai_2/CODE_Repository/gloria-Extended/output/checkpoint_epoch_20.pth"       # Transfer learning
   vision:
       model_name: 'resnet_50'
       freeze_cnn: true
       pretrained: "DEFAULT"
       num_targets: 5
+  text:  
+      bert_type: "emilyalsentzer/Bio_ClinicalBERT"
+      last_n_layers: 4
+      aggregate_method: 'sum'
+      norm: false
+      embedding_dim: 768
+      freeze_bert: false
+      agg_tokens: true
+  gloria: 
+      local_loss_weight: 1.0
+      global_loss_weight: 1.0
+      temp_attention: 4.0
+      temp_similarity: 5.0
+      temp_loss: 10.0
 
 
 # Optimizer parameters
@@ -98,7 +112,7 @@ logging:
     task_type: "training"                      # ClearML task type
     tags: []                                   # List of tags for ClearML task
   
-  experiment_name: "experiment2"  # Name for the experiment
+  experiment_name: "transfer-gloria1"  # Name for the experiment
 
 
 # Miscellaneous parameters

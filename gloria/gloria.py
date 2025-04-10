@@ -21,7 +21,7 @@ from typing import Dict, Literal, Union, List
 from . import builder
 from . import utils
 from . import constants
-from .models.vision_model import PretrainedImageClassifier
+from .models.vision_model import GloriaImageClassifier
 
 
 # Constants for model paths and dimensions
@@ -154,7 +154,7 @@ def load_img_classification_model(
     
     # Create image classifier
     feature_dim = FEATURE_DIMENSIONS[name]
-    img_model = PretrainedImageClassifier(
+    img_model = GloriaImageClassifier(
         image_encoder=image_encoder, 
         num_classes=num_classes, 
         feature_dim=feature_dim, 

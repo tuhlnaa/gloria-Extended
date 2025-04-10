@@ -32,7 +32,7 @@ class GLoRIA(nn.Module):
         
         # Initialize encoders
         self.text_encoder = builder.build_text_model(config)
-        self.img_encoder = builder.build_image_model(config)
+        self.img_encoder = builder.build_image_modelV0(config)
         
         # Get loss functions
         self.local_loss_fn = loss.gloria_loss.local_loss

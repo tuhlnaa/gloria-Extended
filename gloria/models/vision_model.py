@@ -1,8 +1,13 @@
+import copy
 import torch
 import torch.nn as nn
+from rich import print
 from typing import Optional, Tuple, Union
 
-from . import cnn_backbones
+from gloria import builder
+from gloria.models import cnn_backbones
+
+#from . import cnn_backbones
 
 
 class ImageEncoder(nn.Module):
@@ -59,9 +64,9 @@ class ImageEncoder(nn.Module):
 
     def _freeze_backbone(self) -> None:
         """Freeze all parameters in the backbone CNN."""
-        print("Freezing CNN model")
         for param in self.model.parameters():
             param.requires_grad = False
+        print("[bold blue]Training only the classifier head.[/bold blue]")
 
 
     def forward(self, x: torch.Tensor, get_local: bool = False) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
@@ -194,24 +199,25 @@ class ImageClassifier(nn.Module):
             freeze_encoder: bool = False    
         ):
         super().__init__()
-        
 
         if pretrained is None:
             pretrained = config.model.vision.pretrained
+
+        if num_classes is None:
+            num_classes = config.model.vision.num_targets
+
         self.img_encoder, self.feature_dim, _ = cnn_backbones.get_backbone(
             name=config.model.vision.model_name, 
             weights=pretrained
         )
 
-        # Determine number of target classes
-        if num_classes is None:
-            num_classes = config.model.vision.num_targets
         self.classifier = nn.Linear(self.feature_dim, num_classes)
         
         # Freeze encoder if specified
         if freeze_encoder:
             for param in self.img_encoder.parameters():
                 param.requires_grad = False
+            print["[bold blue]Training only the classifier head.[/bold blue]"]
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass through the classifier."""
@@ -220,7 +226,7 @@ class ImageClassifier(nn.Module):
         return predictions
 
 
-class PretrainedImageClassifier(ImageClassifier):
+class GloriaImageClassifier(ImageClassifier):
     """
     Image classifier that uses a pre-trained GLoRIA image encoder.
     
@@ -244,3 +250,4 @@ class PretrainedImageClassifier(ImageClassifier):
         if freeze_encoder:
             for param in self.img_encoder.parameters():
                 param.requires_grad = False
+            print["[bold blue]Training only the classifier head.[/bold blue]"]

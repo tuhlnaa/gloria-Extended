@@ -1,3 +1,4 @@
+
 from . import text_model
 from . import vision_model
 from . import unet
@@ -8,5 +9,6 @@ from . import cnn_backbones
 IMAGE_MODELS = {
     "pretrain": vision_model.ImageEncoder,
     "classification": vision_model.ImageClassifier,
+    "gloria_classification": vision_model.ImageEncoder,
     "segmentation": unet.ResnetUNet,
 }

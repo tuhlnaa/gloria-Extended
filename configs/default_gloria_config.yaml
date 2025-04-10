@@ -43,8 +43,9 @@ transforms:
 # Model parameters
 model:
   batch_size: 48                  # Input batch size for training
-  resume: null                    # Resume full model and optimizer state from checkpoint
+  resume: "E:/Kai_2/CODE_Repository/gloria-Extended/output/checkpoint_epoch_20.pth"                   # Resume full model and optimizer state from checkpoint
   pretrained: true                # Use pretrained model
+  transfer_checkpoint: null       # Transfer learning
   vision:
       model_name: 'resnet_50'
       freeze_cnn: true
@@ -120,10 +121,8 @@ logging:
 # Miscellaneous parameters
 misc:
   monitor_metric: "val_loss"
-  seed: 42                        # Random seed
-  validation_freq: 100            # Frequency of validation (iterations)
-  log_freq: 100                   # Frequency of logging metrics (iterations)
-  save_freq: 100                  # Frequency of saving checkpoints (iterations)
-  visualization_interval: 1000     # Visualize attention maps periodically (iterations)
-  nvis: 8 
-  rand_vis: false 
+  seed: 42                      # Random seed
+  save_freq: 1                  # Frequency of saving checkpoints (epochs)
+  visualization_interval: 1000  # Visualize attention maps periodically (iterations)
+  nvis: 8                       # Maximum number of examples to include in the visualization
+  rand_vis: false               # If True, randomly select images; if False, use the first N images

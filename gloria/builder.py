@@ -4,6 +4,7 @@ GLoRIA: A Global-Local Representation Learning Framework for medical images.
 This module provides factory functions for building GLoRIA models and related components.
 It supports pretraining, classification, and segmentation phases.
 """
+import copy
 import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
@@ -18,12 +19,19 @@ from torch.optim.lr_scheduler import (
 )
 from flash.core.optimizers import LinearWarmupCosineAnnealingLR
 
+from gloria.models.vision_model import GloriaImageClassifier
 from gloria.utils.losses import GloriaLoss
 
 from . import models
 from . import lightning
 from . import datasets
 from . import loss
+
+
+FEATURE_DIMENSIONS = {
+    "resnet_50": 2048, 
+    "resnet_18": 2048
+}
 
 
 def build_data_module(config: Dict[str, Any]):
@@ -77,9 +85,40 @@ def build_image_model(config: Dict[str, Any]):
     """Build the appropriate image model based on the configuration phase."""
     phase = config.phase.lower()
     image_model_class = models.IMAGE_MODELS[phase]
-    return image_model_class(config)
+
+    if config.model.transfer_checkpoint is not None:
+        checkpoint = torch.load(config.model.transfer_checkpoint, map_location="cpu")
+
+        gloria_model = build_gloria_model(config)
+        gloria_model.load_state_dict(checkpoint["model_state_dict"])
+
+        # Load pretrained image encoder
+        image_encoder = copy.deepcopy(gloria_model.img_encoder)
+        del gloria_model  # Free up memory
+
+        # Extract required parameters from config
+        num_classes = config.model.vision.num_targets
+        feature_dim = FEATURE_DIMENSIONS[config.model.vision.model_name]
+        freeze_encoder = config.model.vision.freeze_encoder 
+
+        # Instantiate GloriaImageClassifier with the correct parameters
+        return GloriaImageClassifier(
+            image_encoder=image_encoder,
+            num_classes=num_classes,
+            feature_dim=feature_dim,
+            freeze_encoder=freeze_encoder
+        )
+    else:
+        return image_model_class(config)
 
 
+def build_image_modelV0(config: Dict[str, Any]):
+    """Build the appropriate image model based on the configuration phase."""
+    phase = config.phase.lower()
+    image_model_class = models.IMAGE_MODELS[phase]
+    return image_model_class(config) 
+
+    
 def build_text_model(config: Dict[str, Any]):
     """Build a BERT-based text encoder model."""
     return models.text_model.BertEncoder(config)

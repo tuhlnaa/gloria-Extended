@@ -5,11 +5,12 @@ import torch.nn as nn
 from pathlib import Path
 from omegaconf import OmegaConf
 from tqdm.auto import tqdm
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, Union
 from torch.utils.data import DataLoader
+from rich import print
 
 from gloria import builder
-from gloria.utils.metrics import ClassificationMetrics, GloriaMetrics, GradientMonitor
+from gloria.utils.metrics import GloriaMetrics, GradientMonitor
 from gloria.utils.utils import plot_attn_maps
 
 class GloriaTrainer:
@@ -136,6 +137,19 @@ class GloriaTrainer:
     def resume_from_checkpoint(self, checkpoint_path: Union[str, Path]) -> None:
         """Resume training from checkpoint."""
         checkpoint = torch.load(checkpoint_path, map_location=self.device)
+
+        if hasattr(self.model, 'img_encoder') and hasattr(self.model, 'text_encoder'):
+            print("[bold blue]Successfully created a complete model, transferring to current model...[/bold blue]")
+        else:
+            raise ValueError(f"Could not create a complete model with both encoders")
+
+        # # First analyze the checkpoint to understand mismatches
+        # print("Analyzing checkpoint for potential mismatches...")
+        # analysis = analyze_checkpoint_mismatch(self.model, checkpoint_path)
+        
+        # # Try loading with remapping
+        # print("\nAttempting to load checkpoint with key remapping...")
+        # loaded_keys, missing_keys = load_checkpoint_with_remapping(self.model, checkpoint_path)
         
         self.model.load_state_dict(checkpoint["model_state_dict"])
         self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
@@ -144,7 +158,9 @@ class GloriaTrainer:
             self.scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
 
         start_epochs = checkpoint.get("epochs", 0)
-        best_val_loss = checkpoint.get("best_val_loss", float("inf"))
-        best_val_metric = checkpoint.get("best_metrics", float("inf"))
+        best_val_metrics = checkpoint.get("best_metrics", float("inf"))
 
-        return start_epochs, best_val_metric, best_val_loss
+        val_loss = best_val_metrics["val_loss"]
+        print(f"[bold blue]Loaded checkpoint from '{checkpoint_path}' at epoch {start_epochs} with loss {val_loss:.4f}.[/bold blue]")
+
+        return start_epochs, best_val_metrics

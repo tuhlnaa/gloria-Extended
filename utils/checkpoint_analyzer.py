@@ -119,10 +119,13 @@ class CheckpointInspector:
             sorted_params = sorted(param_info, key=lambda x: x[2], reverse=True)
             for name, shape, count in sorted_params[:10]:
                 param_table.add_row(name, shape, f"{count:,}")
-            
+
             if len(sorted_params) > 10:
                 param_table.add_row("...", "...", "...")
                 
+            for name, shape, count in sorted_params[-6:]:
+                param_table.add_row(name, shape, f"{count:,}")
+
             model_branch.add(param_table)
         
         # Optimizer information
