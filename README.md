@@ -18,7 +18,12 @@ We propose an attentionbased framework for learning global and local representat
 > Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV), 2021 <br>
 
 ## Approach
-![GLoRIA](GLoRIA.png)
+
+![GLoRIA framework](https://github.com/tuhlnaa/gloria-Extended/blob/main/assets/GLoRIA%20framework.png)
+
+![GLoRIA overview](https://github.com/tuhlnaa/gloria-Extended/blob/main/assets/GLoRIA%20overview.png)
+
+<br>
 
 ## Usage
 
@@ -84,6 +89,8 @@ print(similarities)
 # ..           ...           ...            ...       ...               ...
 ```
 
+<br>
+
 ## Training
 
 This codebase has been developed with python version 3.7, PyTorch version 1.7.1, CUDA 10.2 and pytorch-lightning 1.1.4. 
@@ -117,6 +124,8 @@ python run.py -c ./configs/pneumonia_classification_config.yaml --train --test -
 ```
 
 The **train_pct** flag randomly selects a percentage of the dataset to fine-tune the model. This is use to determine the performance of the model under low data regime.
+
+<br>
 
 ## Segmentation
 
