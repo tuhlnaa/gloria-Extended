@@ -12,7 +12,7 @@ checkpoint_path = r"D:\Kai\pretrained\Gloria\chexpert_resnet50.ckpt"
 config = parse_args()
 
 df = pd.read_csv(CHEXPERT_5x200)
-df = df[0:100]
+df = df[0:1]
 full_paths = [os.path.join(config.data_dir, path.replace('CheXpert-v1.0/', '')) for path in df['Path']]
 
 # load model
@@ -23,6 +23,8 @@ model_state_dict = builder.normalize_model_state_dict(checkpoint)
 gloria_model.load_state_dict(model_state_dict)
 
 class_prompts = gloria.generate_chexpert_class_prompts()
+print(class_prompts)
+
 """
 {
 'Atelectasis': ['minimal residual atelectasis at the left lung zone', 'minimal subsegmental atelectasis at the left lung base', ' trace atelectasis at the mid lung zone', 'mild bandlike atelectasis at the lung bases', 'minimal bandlike atelectasis at the right lung base'], 
@@ -50,8 +52,9 @@ labels = df[gloria.constants.CHEXPERT_COMPETITION_TASKS].to_numpy().argmax(axis=
 pred = similarities[gloria.constants.CHEXPERT_COMPETITION_TASKS].to_numpy().argmax(axis=1)
 acc = len(labels[labels == pred]) / len(labels) 
 
-# print(df[gloria.constants.CHEXPERT_COMPETITION_TASKS].to_numpy())
-# # [[1. 0. 0. 0. 0.]]
+print(df[gloria.constants.CHEXPERT_COMPETITION_TASKS].to_numpy())
+# [[1. 0. 0. 0. 0.]]
+
 # print(labels)
 # # [0]
 # print(similarities[gloria.constants.CHEXPERT_COMPETITION_TASKS].to_numpy())

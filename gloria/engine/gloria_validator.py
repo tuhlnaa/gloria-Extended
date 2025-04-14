@@ -31,7 +31,7 @@ class GloriaValidator:
 
     def validate(self, val_loader: DataLoader) -> Dict[str, float]:
         """Validate the model on the validation set."""
-        self.model.eval()
+        self.model.eval().to(self.device)
 
         # Create metrics tracker
         metrics = GloriaMetrics(split='val')

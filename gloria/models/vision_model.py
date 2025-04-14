@@ -1,14 +1,9 @@
-import copy
 import torch
 import torch.nn as nn
 from rich import print
 from typing import Optional, Tuple, Union
 
-from gloria import builder
 from gloria.models import cnn_backbones
-
-#from . import cnn_backbones
-
 
 class ImageEncoder(nn.Module):
     """
@@ -114,16 +109,7 @@ class ImageEncoder(nn.Module):
 
 
     def _resnet_forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        Forward pass for ResNet-based models.
-        
-        Args:
-            x: Input tensor
-            
-        Returns:
-            global_features: Global features
-            local_features: Local features for region-level analysis
-        """
+        """Forward pass for ResNet-based models."""
         # Resize input to expected dimensions
         x = nn.functional.interpolate(x, size=(299, 299), mode="bilinear", align_corners=True)
         
@@ -150,16 +136,7 @@ class ImageEncoder(nn.Module):
 
 
     def _densenet_forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        Forward pass for DenseNet-based models.
-        
-        Args:
-            x: Input tensor
-            
-        Returns:
-            global_features: Global features
-            local_features: Local features for region-level analysis
-        """
+        """Forward pass for DenseNet-based models."""
         # To be implemented based on DenseNet architecture
         raise NotImplementedError("DenseNet forward pass not implemented yet")
 
@@ -198,6 +175,16 @@ class ImageClassifier(nn.Module):
             pretrained: Optional[str] = None, 
             freeze_encoder: bool = False    
         ):
+        """
+        dropout_rate = 0.5 is a common starting point that provides a balance between regularization and maintaining network capacity
+        Smaller datasets or more complex models might benefit from higher dropout rates (0.5-0.7)
+        Larger datasets or simpler models might work better with lower dropout rates (0.2-0.4)
+        This should ideally be tuned as a hyperparameter
+
+        For ResNet50 (2048 features), hidden layers of 512-1024 are common (1/4 to 1/2)
+        For large models, keeping more capacity (like 1/2 or 1/3 reduction) often works better
+        For simpler tasks or smaller datasets, more aggressive reduction (1/8 or 1/16) can help prevent overfitting
+        """
         super().__init__()
 
         if pretrained is None:
@@ -206,12 +193,24 @@ class ImageClassifier(nn.Module):
         if num_classes is None:
             num_classes = config.model.vision.num_targets
 
+        hidden_dim = getattr(config.model.optimization, 'hidden_dim', 512)
+        dropout_rate = getattr(config.model.optimization, 'dropout_rate', 0.5)
+
         self.img_encoder, self.feature_dim, _ = cnn_backbones.get_backbone(
             name=config.model.vision.model_name, 
             weights=pretrained
         )
 
-        self.classifier = nn.Linear(self.feature_dim, num_classes)
+        if config.model.optimization.use:
+            self.classifier = nn.Sequential(
+                nn.Linear(self.feature_dim, hidden_dim),
+                nn.BatchNorm1d(hidden_dim),
+                nn.ReLU(),
+                nn.Dropout(dropout_rate),
+                nn.Linear(hidden_dim, num_classes)
+            )
+        else:
+            self.classifier = nn.Linear(self.feature_dim, num_classes)
         
         # Freeze encoder if specified
         if freeze_encoder:

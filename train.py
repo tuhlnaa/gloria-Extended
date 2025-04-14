@@ -86,7 +86,7 @@ def setup_training(config: OmegaConf) -> Tuple[nn.Module, torch.device, Dict[str
     checkpoint_handler = CheckpointHandler(
         save_dir=config.output_dir,
         filename_prefix="checkpoint",
-        max_save_num=2,
+        max_save_num=1,
         save_interval=config.misc.save_freq
     )
 
@@ -110,8 +110,8 @@ def run_training_pipeline(config: OmegaConf) -> Dict[str, float]:
     # Set up training components
     trainer = Trainer(config, dataloaders['train'])  # 🛠️
     validator = Validator(config, trainer.model, trainer.criterion) # 🛠️
-    # trainer = GloriaTrainer(config, dataloaders['train'])
-    # validator = GloriaValidator(config, trainer.model, trainer.criterion)
+    #trainer = GloriaTrainer(config, dataloaders['train'])
+    #validator = GloriaValidator(config, trainer.model, trainer.criterion)
     trainer.setup_optimization()
 
     # Resume if specified
@@ -124,7 +124,8 @@ def run_training_pipeline(config: OmegaConf) -> Dict[str, float]:
         args=config,
         train_loader=dataloaders['train'],
         val_loader=dataloaders['val'],
-        loss_functions=trainer.criterion
+        loss_functions=trainer.criterion,
+        scheduler=trainer.scheduler
     )
 
     # Training loop
@@ -141,7 +142,7 @@ def run_training_pipeline(config: OmegaConf) -> Dict[str, float]:
         logger.log_metrics(val_metrics, epoch+1)
         
         # Step scheduler if needed
-        if hasattr(config.lr_scheduler, 'step_frequency') and epoch % config.lr_scheduler.step_frequency == 0:
+        if epoch % config.lr_scheduler.step_frequency == 0 and config.lr_scheduler.name != "LinearWarmupCosine":
             trainer.scheduler.step(val_metrics.get("val_loss", None))
         
         # Early stopping check
@@ -293,7 +294,11 @@ if __name__ == '__main__':
     main()
 
 """
-python train.py --config configs\default_gloria_classification_config.yaml
 python train.py --config configs\default_config.yaml
+python train.py --config configs\default_classification_optimization.yaml
+
 python train.py --config configs\default_gloria_config.yaml
+python train.py --config configs\default_gloria_classification_config.yaml
+
+
 """

@@ -2,7 +2,7 @@
 # All paths will be converted to Path objects automatically
 
 # Required parameters (must be provided via command line or config file)
-output_dir: "./output/experiment4"  # Path to save model and results
+output_dir: "./output/experiment8"  # Path to save model and results
 data_dir: "D:\\Kai\\DATA_Set_2\\X-ray\\CheXpert-v1.0-small"    # Path to the dataset directory
 csv_path: null    # Path to the CSV file containing class ID to name mapping
 
@@ -14,19 +14,19 @@ phase: "classification"
 
 # Dataset parameters
 dataset:
-  dataset_name: "chexpert"        # Name of the dataset to use
-  mask_dir: null                  # Optional: Path to directory containing masks
-  selected_classes: null          # List of class names to use (others treated as background)
-  num_workers: 0                  # Number of data loading workers
-  fraction: 0.01 # 1.0  # 🛠️                  # Train split ratio
-  num_classes: 2                  # Number of target classes
+  dataset_name: "chexpert"     # Name of the dataset to use
+  mask_dir: null               # Optional: Path to directory containing masks
+  selected_classes: null       # List of class names to use (others treated as background)
+  num_workers: 0               # Number of data loading workers
+  fraction: 1.0  # 🛠️          # Train split ratio
+  num_classes: 2                # Number of target classes
   image: 
-    imsize: 256                   # Target image size
+    imsize: 256                 # Target image size
     
 
 # Apply data augmentation for training
 transforms:  
-  norm: 'half'
+  norm: "imagenet"                 # "imagenet", "half"
   random_crop:
     crop_size: 224                 # Size of random crop for data augmentation
   # random_horizontal_flip: 0.5    # Probability of random horizontal flip
@@ -47,13 +47,17 @@ model:
       freeze_cnn: true
       pretrained: "DEFAULT"
       num_targets: 5
+  optimization:
+    use: true
+    hidden_dim: 512    # 🛠️
+    dropout_rate: 0.5  # 🛠️
 
 
 # Optimizer parameters
 optimizer:
   name: "Adam"
-  weight_decay: 1e-6 # 0.01 # 🛠️ default: 0.01     # Weight decay factor
-  clip_grad: 0.25    # 1.0  # 🛠️ default: 0.25
+  weight_decay: 0.01  # 🛠️     # Weight decay factor
+  clip_grad: 1.0      # 🛠️
 
 
 # Regularization parameters
@@ -64,15 +68,15 @@ criterion:
 
 # Learning rate schedule parameters
 lr_scheduler:
-  name: 'plateau'
-  epochs: 50          # 🛠️ default: 50      # Number of epochs to train
-  learning_rate: 1e-4 # 1.0e-3 # 🛠️      # Learning rate for the optimizer
-  warmup_ratio: 0.1               # Ratio of warmup steps
-  patience: 10         # 🛠️ default: 7    # Early stopping patience
-  monitor: 'val_loss'  # This parameter specifies which metric to watch for making scheduler decisions. 
-  interval: 'epoch'    # This determines when the scheduler should be called. 
+  name: 'plateau'        # 🛠️  'LinearWarmupCosine'  'plateau'
+  epochs: 50             # Number of epochs to train
+  learning_rate: 1.0e-3  # 🛠️  # Learning rate for the optimizer
+  warmup_ratio: 0.1      # Ratio of warmup steps
+  patience: 20           # 🛠️ # Early stopping patience
+  monitor: 'val_loss'    # This parameter specifies which metric to watch for making scheduler decisions. 
+  interval: 'epoch'      # This determines when the scheduler should be called. 
   val_check_interval: null
-  step_frequency: 3    # This determines how often the scheduler should be called according to the interval. 
+  step_frequency: 3      # This determines how often the scheduler should be called according to the interval. 
 
 
 # Device & distributed training parameters
@@ -98,7 +102,7 @@ logging:
     task_type: "training"                      # ClearML task type
     tags: []                                   # List of tags for ClearML task
   
-  experiment_name: "experiment4"  # Name for the experiment
+  experiment_name: "experiment8"  # Name for the experiment
 
 
 # Miscellaneous parameters

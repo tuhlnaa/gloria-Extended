@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 PROJECT_ROOT = Path(__file__).parents[1]
 sys.path.append(str(PROJECT_ROOT))
 
-from data.pretraining_datasetV2 import get_chexpert_multimodal_dataloader
+from data.pretraining_datasetV3 import get_chexpert_multimodal_dataloader
 from utils.logging_utils import LoggingManager
 
 
@@ -40,7 +40,7 @@ def main():
     print("\nTesting batch loading:")
     for batch_idx, batch in enumerate(data_loader):
         print(f"Batch {batch_idx + 1}:")
-        print(f"  Images shape: {batch['imgs'].shape}")
+        print(f"  Images shape: {batch['imgs'].shape}, Max value: {batch['imgs'].max()}, Min value: {batch['imgs'].min()}")
         print(f"  Caption IDs shape: {batch['caption_ids'].shape}")
         print(f"  Token type IDs shape: {batch['token_type_ids'].shape}")
         print(f"  Attention mask shape: {batch['attention_mask'].shape}")

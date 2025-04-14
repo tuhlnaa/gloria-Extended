@@ -5,6 +5,9 @@ from typing import List, Tuple
 from omegaconf import OmegaConf
 from transformers import AutoModel, AutoTokenizer
 
+
+
+
 class BertEncoder(nn.Module):
     """
     A BERT-based encoder for text processing in multimodal medical image recognition.

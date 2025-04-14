@@ -75,13 +75,15 @@ class Trainer:
             _ = grad_monitor.update_before_clip(self.model)
 
             # Gradient clipping
-            if hasattr(self.config.optimizer, 'clip_grad'):
-                torch.nn.utils.clip_grad_norm_(
-                    self.model.parameters(), 
-                    max_norm=self.config.optimizer.clip_grad
-                )
+            torch.nn.utils.clip_grad_norm_(
+                self.model.parameters(), 
+                max_norm=self.config.optimizer.clip_grad
+            )
 
             self.optimizer.step()  # Update parameters
+
+            if self.config.lr_scheduler.name == "LinearWarmupCosine":
+                self.scheduler.step()
 
             # Monitor gradients after clipping
             _ = grad_monitor.update_after_clip(self.model)

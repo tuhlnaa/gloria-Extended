@@ -132,6 +132,7 @@ class LoggingManager:
             train_loader: DataLoader, 
             val_loader: DataLoader,
             loss_functions: Union[Dict, List], 
+            scheduler: Union[Dict, List], 
             title: str = "Training Configuration"
         ) -> None:
         """Print training configuration details in a structured table."""
@@ -152,7 +153,8 @@ class LoggingManager:
             "Steps per epoch": num_training_steps_per_epoch,
             "Training examples": len(train_loader.dataset),
             "Validation examples": len(val_loader.dataset),
-            "Criterion": loss_functions
+            "Criterion": loss_functions,
+            "Scheduler": scheduler
         }
         
         for param_name, param_value in params.items():

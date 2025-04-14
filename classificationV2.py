@@ -103,7 +103,7 @@ def run_inference_in_batches(
     
     all_similarities = []
     num_batches = (len(images_paths) + batch_size - 1) // batch_size
-    
+
     # Process images in batches
     for i in tqdm(range(num_batches), desc="Processing batches"):
         start_idx = i * batch_size
@@ -157,7 +157,7 @@ def main():
     gloria_model = load_gloria_model(config, CHECKPOINT_PATH)
     
     # Load dataset
-    batch_size = 64  # Adjust based on available GPU memory
+    batch_size = 1000  # Adjust based on available GPU memory
     df, full_paths = prepare_dataset(
         CHEXPERT_5x200, 
         config.data_dir, 
@@ -173,7 +173,7 @@ def main():
         full_paths,
         class_prompts,
         config.device.device,
-        batch_size=16  # Process in smaller batches to save memory
+        batch_size=1  # Process in smaller batches to save memory
     )
     
     # Calculate accuracy

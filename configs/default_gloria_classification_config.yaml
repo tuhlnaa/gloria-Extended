@@ -42,7 +42,7 @@ model:
   resume: null                    # Resume full model and optimizer state from checkpoint
   pretrained: true                # Use pretrained model
   # transfer_checkpoint: "E:/Kai_2/CODE_Repository/gloria-Extended/output/checkpoint_epoch_20.pth"  # Transfer learning
-  transfer_checkpoint: "D:/Kai/pretrained/Gloria/chexpert_resnet50.ckpt"  # Transfer learning
+  transfer_checkpoint: "D:/Kai/pretrained/Gloria/chexpert_resnet50.ckpt"  # 🛠️ # Transfer learning
   vision:
       model_name: 'resnet_50'
       freeze_cnn: true

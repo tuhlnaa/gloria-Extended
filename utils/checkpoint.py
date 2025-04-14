@@ -8,7 +8,7 @@ class CheckpointHandler:
             self, 
             save_dir: str, 
             filename_prefix: str = "checkpoint",
-            max_save_num: int = 2,
+            max_save_num: int = 1,
             save_interval: int = 1  # Save checkpoints every N epochs
         ):
         """Initialize CheckpointHandler for managing model checkpoints.

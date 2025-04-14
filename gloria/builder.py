@@ -219,8 +219,11 @@ def build_scheduler(
         max_epochs=total_steps,
         warmup_start_lr=config.lr_scheduler.learning_rate * 0.1,
         eta_min=1e-6)
-    else:
+    elif scheduler_name == None:
         return None  # Early return if no scheduler specified
+    else:
+        raise ValueError(f"Unsupported loss function: {scheduler_name}")
+
     
     return scheduler
 

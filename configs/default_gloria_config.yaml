@@ -43,7 +43,7 @@ transforms:
 # Model parameters
 model:
   batch_size: 48                  # Input batch size for training
-  resume: "E:/Kai_2/CODE_Repository/gloria-Extended/output/checkpoint_epoch_20.pth"                   # Resume full model and optimizer state from checkpoint
+  resume: "D:/Kai/pretrained/Gloria/chexpert_resnet50.ckpt" # 🛠️                   # Resume full model and optimizer state from checkpoint
   pretrained: true                # Use pretrained model
   transfer_checkpoint: null       # Transfer learning
   vision:

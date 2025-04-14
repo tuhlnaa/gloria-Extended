@@ -463,7 +463,6 @@ class GLoRIA(nn.Module):
     
     def process_images(self, paths, device):
         """Process images for model input."""
-        # transform = builder.build_transformation(self.config, split="test")
         transform = build_transformation(self.config, split="test")
 
         # Ensure paths is a list
