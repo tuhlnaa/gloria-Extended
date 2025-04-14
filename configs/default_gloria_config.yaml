@@ -10,7 +10,7 @@ phase: "pretrain"
 
 # Dataset parameters
 dataset:
-  dataset_name: "chexpert_multimodal"  # Name of the dataset to use
+  name: "chexpert_multimodal"  # Name of the dataset to use
   num_workers: 0                       # Number of data loading workers
   fraction: 0.01 # 1.0  # 🛠️           # Train split ratio
   image: 

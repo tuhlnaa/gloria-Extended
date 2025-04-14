@@ -68,7 +68,7 @@ if __name__ == "__main__":
 │                        master_csv │ 'df_chexpert_plus_240401.csv'                 │
 │                  model.batch_size │ 16                                            │
 │              model.text.bert_type │ 'emilyalsentzer/Bio_ClinicalBERT'             │
-│              dataset.dataset_name │ 'chexpert'                                    │
+│              dataset.name         │ 'chexpert'                                    │
 │                  dataset.fraction │ 1.0                                           │
 │               dataset.num_workers │ 0                                             │
 │              dataset.image.imsize │ 256                                           │

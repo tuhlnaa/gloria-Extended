@@ -14,7 +14,7 @@ phase: "classification"
 
 # Dataset parameters
 dataset:
-  dataset_name: "chexpert"        # Name of the dataset to use
+  name: "chexpert"        # Name of the dataset to use
   mask_dir: null                  # Optional: Path to directory containing masks
   selected_classes: null          # List of class names to use (others treated as background)
   num_workers: 0                  # Number of data loading workers

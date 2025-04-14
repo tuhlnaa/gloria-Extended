@@ -67,7 +67,7 @@ if __name__ == "__main__":
 │                        valid_csv │ 'valid.csv'                                       │
 │                         test_csv │ 'valid.csv'                                       │
 │                 model.batch_size │ 16                                                │
-│             dataset.dataset_name │ 'chexpert'                                        │
+│             dataset.name         │ 'chexpert'                                        │
 │                 dataset.fraction │ 1.0                                               │
 │              dataset.num_workers │ 0                                                 │
 │             dataset.image.imsize │ 256                                               │

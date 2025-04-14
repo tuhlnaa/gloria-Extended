@@ -1,24 +1,20 @@
-
 import torch
 import torch.nn as nn
-
 from pathlib import Path
 from omegaconf import OmegaConf
 from tqdm.auto import tqdm
-from typing import Dict, List, Tuple, Union
+from typing import Dict, Union
 from torch.utils.data import DataLoader
 
 from gloria import builder
+from gloria.engine.base_trainer import BaseTrainer
 from gloria.utils.metrics import ClassificationMetrics, GradientMonitor
 
-class Trainer:
+class Trainer(BaseTrainer):
     """Trainer class for image classification models."""
 
     def __init__(self, config: OmegaConf, train_loader: DataLoader):
-        self.config = config
-        self.learning_rate = config.lr_scheduler.learning_rate
-        self.device = config.device.device
-        self.train_loader = train_loader
+        super().__init__(config, train_loader)
         
         # Initialize the model
         self.model = self._initialize_model().to(self.device)
@@ -26,29 +22,11 @@ class Trainer:
 
         # Initialize loss function
         self.criterion = builder.build_loss(config)
-        
-        # Optimization components (initialized later)
-        self.optimizer = None
-        self.scheduler = None
 
 
     def _initialize_model(self) -> torch.nn.Module:
         """Initialize the model based on configuration."""
         return builder.build_image_model(self.config)
-
-
-    def setup_optimization(self) -> None:
-        """Set up optimizer and learning rate scheduler."""
-        self.optimizer = builder.build_optimizer(
-            self.config, 
-            self.learning_rate, 
-            self.model
-        )
-        self.scheduler = builder.build_scheduler(
-            self.config, 
-            self.optimizer, 
-            self.train_loader
-        )
 
 
     def train_epoch(self, train_loader: DataLoader, epoch: int) -> Dict[str, float]:

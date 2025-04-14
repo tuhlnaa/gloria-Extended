@@ -8,7 +8,7 @@ from omegaconf import OmegaConf
 from typing import Dict
 from rich import print
 
-from data.utils import dataset_factory
+from data.factory import dataset_factory
 from configs.config import parse_args
 from gloria import builder
 from gloria.engine.gloria_validator import GloriaValidator

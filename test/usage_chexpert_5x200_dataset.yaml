@@ -11,11 +11,11 @@ model:
 
 
 dataset:
-  dataset_name: chexpert  # Name of the dataset to use
-  fraction: 1.0          # Train split ratio
-  num_workers: 0          # Input batch size for training
+  name: chexpert   # Name of the dataset to use
+  fraction: 1.0    # Train split ratio
+  num_workers: 0   # Input batch size for training
   image: 
-    imsize: 256           # Target image size
+    imsize: 256    # Target image size
   text: 
     word_num: 97                  # Maximum number of tokens after tokenization
     captions_per_image: 5         # Maximum number of words to use per image

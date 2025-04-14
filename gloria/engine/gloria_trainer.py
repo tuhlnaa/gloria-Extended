@@ -1,7 +1,5 @@
-
 import torch
 import torch.nn as nn
-
 from pathlib import Path
 from omegaconf import OmegaConf
 from tqdm.auto import tqdm
@@ -10,10 +8,11 @@ from torch.utils.data import DataLoader
 from rich import print
 
 from gloria import builder
+from gloria.engine.base_trainer import BaseTrainer
 from gloria.utils.metrics import GloriaMetrics, GradientMonitor
 from gloria.utils.utils import plot_attn_maps
 
-class GloriaTrainer:
+class GloriaTrainer(BaseTrainer):
     """
     Pure PyTorch model for GLoRIA pretraining.
     
@@ -22,10 +21,7 @@ class GloriaTrainer:
     """
 
     def __init__(self, config: OmegaConf, train_loader: DataLoader):
-        self.config = config
-        self.learning_rate = config.lr_scheduler.learning_rate
-        self.device = config.device.device
-        self.train_loader = train_loader
+        super().__init__(config, train_loader)
         
         # Initialize the model
         self.model = self._initialize_model().to(self.device)
@@ -33,29 +29,11 @@ class GloriaTrainer:
 
         # Initialize loss function
         self.criterion = builder.build_loss(config)
-        
-        # Optimization components (initialized later)
-        self.optimizer = None
-        self.scheduler = None
 
 
     def _initialize_model(self) -> torch.nn.Module:
         """Initialize the model based on configuration."""
         return builder.build_gloria_model(self.config)
-
-
-    def setup_optimization(self) -> None:
-        """Set up optimizer and learning rate scheduler."""
-        self.optimizer = builder.build_optimizer(
-            self.config, 
-            self.learning_rate, 
-            self.model
-        )
-        self.scheduler = builder.build_scheduler(
-            self.config, 
-            self.optimizer, 
-            self.train_loader
-        )
 
 
     def train_epoch(self, train_loader: DataLoader, epoch: int) -> Dict[str, float]:
@@ -101,7 +79,10 @@ class GloriaTrainer:
             _ = grad_monitor.update_after_clip(self.model)
 
             self.optimizer.step()
-            # self.scheduler.step() # 🛠️
+            
+            # Update learning rate scheduler if needed
+            if self.config.lr_scheduler.name == "LinearWarmupCosine":
+                self.scheduler.step()
             
             # Update metrics
             metrics.update(loss_result)

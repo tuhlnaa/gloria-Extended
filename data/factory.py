@@ -23,6 +23,7 @@ class DatasetFactory:
             # Register other dataset loaders here
         }
     
+
     def get_dataloader(self, config: OmegaConf, dataset_name: str = None, **kwargs) -> Tuple[DataLoader, Any]:
         """
         Get the appropriate dataloader based on dataset name.
@@ -39,7 +40,7 @@ class DatasetFactory:
             ValueError: If the specified dataset is not registered
         """
         # Use dataset_name if provided, otherwise use from config
-        dataset_to_use = dataset_name if dataset_name else config.dataset.dataset_name
+        dataset_to_use = dataset_name if dataset_name else config.dataset.name
         
         if dataset_to_use not in self._dataset_loaders:
             available_datasets = list(self._dataset_loaders.keys())
@@ -50,6 +51,7 @@ class DatasetFactory:
         
         # Return the dataloader and additional info
         return dataloader_fn(config, **kwargs)
+    
     
     def register_dataloader(self, name: str, loader_fn: Callable) -> None:
         """
