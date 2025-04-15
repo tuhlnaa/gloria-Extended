@@ -200,9 +200,12 @@ if __name__ == '__main__':
 
 """
 python train.py --config configs\default_config.yaml
+
 python train.py --config configs\default_classification_optimization.yaml
 
 python train.py --config configs\default_gloria_config.yaml
 python train.py --config configs\default_gloria_classification_config.yaml
+
+python train.py --config configs\default_segmentation.yaml
 
 """

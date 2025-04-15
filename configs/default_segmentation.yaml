@@ -1,0 +1,111 @@
+# Default configuration for RSNA Trauma Detection model
+# All paths will be converted to Path objects automatically
+
+# Required parameters (must be provided via command line or config file)
+output_dir: "./output/experiment9"  # 🛠️ # Path to save model and results
+data_dir: "D:/Kai/DATA_Set_2/X-ray/SIIM-ACR-Pneumothorax"    # Path to the dataset directory
+# csv_path: null    # Path to the CSV file containing class ID to name mapping
+
+train_csv: "stage_1_train_images.csv"  # Path to the specific split CSV file
+valid_csv: "stage_1_test_images.csv"
+#test_csv: "valid.csv"   # Using validation set as test set (test set labels hidden)
+
+phase: "segmentation"
+
+# Dataset parameters
+dataset:
+  name: "pneumothorax"         # Name of the dataset to use
+  # mask_dir: null               # Optional: Path to directory containing masks
+  # selected_classes: null       # List of class names to use (others treated as background)
+  num_workers: 0               # Number of data loading workers
+  fraction: 0.2  # 🛠️          # Train split ratio
+  # num_classes: 2                # Number of target classes
+  image: 
+    imsize: 256                 # Target image size
+    
+
+# Apply data augmentation for training
+transforms:  
+  norm: "half"                 # "imagenet", "half"
+  random_crop:
+    crop_size: 224                 # Size of random crop for data augmentation
+  # random_horizontal_flip: 0.5    # Probability of random horizontal flip
+  # random_affine: null            # Parameters for random affine transformation
+  # color_jitter: null             # Parameters for color jittering
+  # norm: norm                     # Normalization parameters
+
+
+# Model parameters
+model:
+  name: "segmentation"
+  # image_size: 256               # Input image size
+  batch_size: 8                   # Input batch size for training
+  resume: null                    # Resume full model and optimizer state from checkpoint
+  pretrained: true                # Use pretrained model
+  transfer_checkpoint: null       # Transfer learning
+  optimization:
+    use: false
+    hidden_dim: 512    # 🛠️
+    dropout_rate: 0.5  # 🛠️
+
+
+# Optimizer parameters
+optimizer:
+  name: "Adam"
+  weight_decay: 1e-6   # 🛠️     # Weight decay factor
+  clip_grad: null      # 🛠️
+
+
+# Regularization parameters
+criterion: 
+  name: "MixedLoss"
+  class_weights: null
+  alpha: 10.0
+
+# Learning rate schedule parameters
+lr_scheduler:
+  name: 'plateau'        # 🛠️  'LinearWarmupCosine'  'plateau'
+  epochs: 10            # 🛠️ 100  Number of epochs to train
+  learning_rate: 5e-4    # 🛠️  # Learning rate for the optimizer
+  warmup_ratio: 0.1      # Ratio of warmup steps
+  patience: 20           # 🛠️ # Early stopping patience
+  monitor: 'val_loss'    # This parameter specifies which metric to watch for making scheduler decisions. 
+  interval: 'epoch'      # This determines when the scheduler should be called. 
+  val_check_interval: null
+  step_frequency: 3      # This determines how often the scheduler should be called according to the interval. 
+
+
+# Device & distributed training parameters
+device:
+  amp: "no"                       # Automatic mixed precision: "no", "fp16", "bf16"
+  device: "cuda:0"                # Device to use: "cpu", "cuda:0", etc.
+
+
+# Logging parameters
+logging:
+  logger: "clearml"           # Logger to use: "tensorboard", "neptune", "clearml"
+  
+  # Neptune logger parameters (only required if logger="neptune")
+  neptune:
+    project: null                 # Neptune project name
+    api_token: null               # Neptune API token
+    run_id: null                  # Neptune run ID to resume (e.g., "CLS-123")
+  
+  # ClearML logger parameters (only required if logger="clearml")
+  clearml:
+    project: "gloria-Extended-segmentation"    # ClearML project name
+    task_id: false                             # ClearML task ID to resume or boolean flag
+    task_type: "training"                      # ClearML task type
+    tags: []                                   # List of tags for ClearML task
+  
+  experiment_name: "experiment09"  # 🛠️ # Name for the experiment
+
+
+# Miscellaneous parameters
+misc:
+  monitor_metric: "val_loss"
+  seed: 42                      # Random seed
+  save_freq: 1                  # Frequency of saving checkpoints (epochs)
+  visualization_interval: 1000  # Visualize attention maps periodically (iterations)
+  nvis: 8                       # Maximum number of examples to include in the visualization
+  rand_vis: false               # If True, randomly select images; if False, use the first N images

@@ -8,6 +8,8 @@ from gloria.engine.classification_trainer import Trainer
 from gloria.engine.classification_validator import Validator
 from gloria.engine.gloria_trainer import GloriaTrainer
 from gloria.engine.gloria_validator import GloriaValidator
+from gloria.engine.segmentation_trainer import SegmentationTrainer
+from gloria.engine.segmentation_validator import SegmentationValidator
 
 class TrainerFactory:
     """
@@ -21,6 +23,7 @@ class TrainerFactory:
         """Register trainer implementations with their respective model names"""
         self._trainers: Dict[str, Callable] = {
             "classification": Trainer,
+            "segmentation": SegmentationTrainer,
             "gloria": GloriaTrainer,
             "gloria_classification": Trainer,
             # Register other trainer implementations here
@@ -78,6 +81,7 @@ class ValidatorFactory:
         """Register validator implementations with their respective model names"""
         self._validators: Dict[str, Callable] = {
             "classification": Validator,
+            "segmentation": SegmentationValidator,
             "gloria": GloriaValidator,
             "gloria_classification": Validator,
             # Register other validator implementations here

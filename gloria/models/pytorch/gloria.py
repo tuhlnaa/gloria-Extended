@@ -94,7 +94,6 @@ class GLoRIAModel:
             _ = grad_monitor.update_after_clip(self.model)
 
             self.optimizer.step()
-            # self.scheduler.step() # 🛠️
             
             # Update metrics
             metrics.update(loss_result)

@@ -227,27 +227,6 @@ def build_scheduler(
     
     return scheduler
 
-    # # Calculate scheduler frequency if validation check interval is set
-    # frequency = 1  # Default frequency
-    # interval = config.lr_scheduler.interval  # Default interval
-
-    # # 🛠️
-    # # if hasattr(config.lr_scheduler.trainer, 'val_check_interval') and config.lr_scheduler.val_check_interval is not None:
-    # #     interval = "step"
-    # #     if dm and hasattr(dm, 'train_dataloader'):
-    # #         num_iter = len(dm.train_dataloader().dataset)
-    # #         if isinstance(config.lr_scheduler.val_check_interval, float):
-    # #             frequency = int(num_iter * config.lr_scheduler.val_check_interval)
-    # #         else:
-    # #             frequency = config.lr_scheduler.val_check_interval
-    
-    # return {
-    #     "scheduler": scheduler,
-    #     "monitor": config.lr_scheduler.monitor,
-    #     "interval": interval,
-    #     "frequency": frequency,
-    # }
-
 
 def build_loss(config: Dict[str, Any]) -> nn.Module:
     """Build a loss function based on configuration."""

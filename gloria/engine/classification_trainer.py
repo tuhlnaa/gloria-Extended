@@ -1,5 +1,5 @@
 import torch
-import torch.nn as nn
+
 from pathlib import Path
 from omegaconf import OmegaConf
 from tqdm.auto import tqdm

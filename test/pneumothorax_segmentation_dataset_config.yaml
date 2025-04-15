@@ -20,7 +20,7 @@ dataset:
 
 # Uses transforms built from config
 transforms:  
-  # norm: 'half'
+  norm: 'half'
   random_crop:
     crop_size: 224
   # random_horizontal_flip: 0.5

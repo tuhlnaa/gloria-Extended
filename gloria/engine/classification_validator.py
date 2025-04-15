@@ -4,13 +4,11 @@ Validation and testing module for GLoRIA model and other classification models.
 This module handles validation, testing, and metric computation for image
 classification models, with special support for GLoRIA pre-trained models.
 """
+import torch
 
 from omegaconf import OmegaConf
-import torch
-import numpy as np
-
 from tqdm.auto import tqdm
-from typing import Dict, List
+from typing import Dict
 from torch.utils.data import DataLoader
 
 from gloria.utils.metrics import ClassificationMetrics

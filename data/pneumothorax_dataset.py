@@ -219,14 +219,14 @@ class PneumothoraxImageDataset(ImageBaseDataset):
         # Read the image
         filename = imgid_df.iloc[0]["new_filename"]
         img_path = Path(self.config.data_dir) / "png_images" / filename
-        img = (self.read_image(img_path) / 255).astype(np.float32)
+        img = self.read_image(img_path)
         
         # Handle segmentation or classification based on phase
         if self.config.phase == "segmentation":
             # For segmentation, load the corresponding mask
             mask_filename = filename  # Assuming mask has same name pattern
             mask_path = Path(self.config.data_dir) / "png_masks" / mask_filename
-            mask = (self.read_mask(mask_path) / 255).astype(np.float32)
+            mask = self.read_mask(mask_path)
 
             # Apply transformations
             augmented = self.seg_transform(image=img, mask=mask)

@@ -42,16 +42,6 @@ class ClassificationModel:
     def _initialize_model(self) -> torch.nn.Module:
         """Initialize the classification model based on configuration."""
         return builder.build_image_model(self.config)
-        # 🛠️
-        # if self.config.model.vision.model_name in gloria.available_models():
-        #     return gloria.load_img_classification_model(
-        #         self.config.model.vision.model_name,
-        #         num_classes=self.config.model.vision.num_targets,
-        #         freeze_encoder=self.config.model.vision.freeze_cnn,
-        #         device=self.device
-        #     )
-        # else:
-        #     return builder.build_image_model(self.config)
 
 
     def setup_optimization(self) -> None:
@@ -90,25 +80,12 @@ class ClassificationModel:
                 
         # Calculate epoch metrics
         metrics = self._compute_epoch_metrics(all_logits, all_labels, epoch_loss, len(train_loader), "train")
-
-        # 🛠️
-        # # Step LR scheduler if it's epoch-based
-        # if self.scheduler is not None:
-        #     self.scheduler.step()
             
         return metrics
 
 
     def validate(self, val_loader) -> Dict[str, float]:
-        """
-        Validate the model on the validation set.
-        
-        Args:
-            val_loader: DataLoader for validation data
-            
-        Returns:
-            Dict[str, float]: Dictionary of validation metrics
-        """
+        """Validate the model on the validation set."""
         self.model.eval()
         val_loss = 0.0
         all_logits = []
