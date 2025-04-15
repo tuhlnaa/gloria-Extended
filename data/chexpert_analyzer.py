@@ -94,12 +94,13 @@ class CheXpertAnalyzer:
     def visualize_counts(self, count_df: pd.DataFrame, output_path: str) -> None:
         """Create a grouped bar plot visualization of the counts."""
         plt.figure(figsize=(8, 6))
-        
+
         # Define color palette (Data volume ranking)
         palette_name = 'coolwarm'
         pal = sns.color_palette(palette_name, len(count_df['Tag']))
         rank = count_df['Count'].argsort().argsort()
         palette_list = list(np.array(pal)[rank])
+
 
         plt.style.use('cyberpunk')
         if self.convert_uncertain:

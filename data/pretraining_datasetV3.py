@@ -16,7 +16,7 @@ import torchvision.transforms as T
 from PIL import Image
 from nltk.tokenize import RegexpTokenizer
 from transformers import AutoTokenizer
-from data.dataset import build_transformation
+from data.chexpert_dataset import build_transformation
 from gloria.constants import *
 
 

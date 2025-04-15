@@ -10,7 +10,7 @@ from omegaconf import OmegaConf
 PROJECT_ROOT = Path(__file__).parents[1]
 sys.path.append(str(PROJECT_ROOT))
 
-from data.dataset import get_chexpert_dataloader
+from data.chexpert_dataset import get_chexpert_dataloader
 from utils.logging_utils import LoggingManager
 
 

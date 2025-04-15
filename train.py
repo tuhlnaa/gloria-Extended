@@ -105,6 +105,7 @@ def run_training_pipeline(config: OmegaConf) -> Dict[str, float]:
 
     # Set up training components
     trainer = trainer_factory.get_trainer(config, dataloaders['train'])
+
     validator = validator_factory.get_validator(config, trainer.model, trainer.criterion)
     trainer.setup_optimization()
 

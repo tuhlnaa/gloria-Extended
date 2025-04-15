@@ -11,13 +11,13 @@ phase: "pretrain"
 # Dataset parameters
 dataset:
   name: "chexpert_multimodal"  # Name of the dataset to use
-  num_workers: 0                       # Number of data loading workers
-  fraction: 0.01 # 1.0  # 🛠️           # Train split ratio
+  num_workers: 0               # Number of data loading workers
+  fraction: 0.01  # 🛠️         # Train split ratio
   image: 
-    imsize: 256                        # Target image size
+    imsize: 256                # Target image size
   text: 
     word_num: 97                  # Maximum number of tokens after tokenization
-    captions_per_image: 5   # 🛠️ default: 5       # Maximum number of words to use per image
+    captions_per_image: 5   # 🛠️ default: 5  # Maximum number of words to use per image
     full_report: false            # Use full report (true) or single sentence (false)
     use_findings_section: false   # Prioritize findings section if available
   columns:                        # Column names in the CSV
@@ -64,7 +64,7 @@ model:
       global_loss_weight: 1.0
       temp_attention: 4.0    # 🛠️ default: 4.0
       temp_similarity: 5.0   # 🛠️ default: 5.0
-      temp_loss: 10.0         # 🛠️ default: 10.0
+      temp_loss: 10.0        # 🛠️ default: 10.0
 
 # Optimizer parameters
 optimizer:
@@ -75,7 +75,7 @@ optimizer:
 
 # Regularization parameters
 criterion: 
-  name: "GloriaLoss"   # 🛠️ default: "BCE" 
+  name: "GloriaLoss"
   class_weights: null
 
 

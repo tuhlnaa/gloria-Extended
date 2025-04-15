@@ -16,7 +16,7 @@ from typing import Dict, List, Optional, Tuple, Union
 from torch.utils.data import Dataset, DataLoader
 from nltk.tokenize import RegexpTokenizer
 
-from data.dataset import build_transformation
+from data.chexpert_dataset import build_transformation
 
 
 class CheXpertMultimodalDataset(Dataset):

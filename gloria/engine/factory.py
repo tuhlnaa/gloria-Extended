@@ -22,6 +22,7 @@ class TrainerFactory:
         self._trainers: Dict[str, Callable] = {
             "classification": Trainer,
             "gloria": GloriaTrainer,
+            "gloria_classification": Trainer,
             # Register other trainer implementations here
         }
     
@@ -42,8 +43,8 @@ class TrainerFactory:
             ValueError: If the specified model/trainer is not registered
         """
         # Use model_name if provided, otherwise use from config
-        model_to_use = model_name if model_name else config.model.name
-        
+        model_to_use = model_name if model_name else config.model.name.lower()
+
         if model_to_use not in self._trainers:
             available_trainers = list(self._trainers.keys())
             raise ValueError(f"Trainer for model '{model_to_use}' not found. Available trainers: {available_trainers}")
@@ -78,6 +79,7 @@ class ValidatorFactory:
         self._validators: Dict[str, Callable] = {
             "classification": Validator,
             "gloria": GloriaValidator,
+            "gloria_classification": Validator,
             # Register other validator implementations here
         }
     

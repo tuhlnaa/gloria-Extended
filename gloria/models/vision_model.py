@@ -193,15 +193,15 @@ class ImageClassifier(nn.Module):
         if num_classes is None:
             num_classes = config.model.vision.num_targets
 
-        hidden_dim = getattr(config.model.optimization, 'hidden_dim', 512)
-        dropout_rate = getattr(config.model.optimization, 'dropout_rate', 0.5)
-
         self.img_encoder, self.feature_dim, _ = cnn_backbones.get_backbone(
             name=config.model.vision.model_name, 
             weights=pretrained
         )
 
         if config.model.optimization.use:
+            hidden_dim = getattr(config.model.optimization, 'hidden_dim', 512)
+            dropout_rate = getattr(config.model.optimization, 'dropout_rate', 0.5)
+
             self.classifier = nn.Sequential(
                 nn.Linear(self.feature_dim, hidden_dim),
                 nn.BatchNorm1d(hidden_dim),
@@ -250,3 +250,4 @@ class GloriaImageClassifier(ImageClassifier):
             for param in self.img_encoder.parameters():
                 param.requires_grad = False
             print("[bold blue]Training only the classifier head.[/bold blue]")
+        

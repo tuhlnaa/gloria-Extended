@@ -19,7 +19,7 @@ dataset:
   selected_classes: null       # List of class names to use (others treated as background)
   num_workers: 0               # Number of data loading workers
   fraction: 1.0  # 🛠️          # Train split ratio
-  num_classes: 2                # Number of target classes
+  # num_classes: 2                # Number of target classes
   image: 
     imsize: 256                 # Target image size
     

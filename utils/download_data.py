@@ -34,7 +34,16 @@ def download_kaggle_data(identifier: str, destination_dir: str = './data', unzip
 
 
 if __name__ == "__main__":
-    # General dataset identifier
     dataset_identifier = "ashery/chexpert"
-    dataset_path = download_kaggle_data(dataset_identifier, destination_dir=r"./download")
+    #dataset_path = download_kaggle_data(dataset_identifier, destination_dir=r"./dataset/X-ray/chexpert")
+    
+    dataset_identifier = "vbookshelf/pneumothorax-chest-xray-images-and-masks"
+    #dataset_path = download_kaggle_data(dataset_identifier, destination_dir=r"./X-ray/SIIM-ACR-Pneumothorax")
+    
+    dataset_identifier = "siim-acr-pneumothorax-segmentation"
+    #dataset_path = download_kaggle_data(dataset_identifier, destination_dir=r"./dataset/X-ray/SIIM-ACR-Pneumothorax", is_competition=True)
+    
+    dataset_identifier = "rsna-pneumonia-detection-challenge"
+    dataset_path = download_kaggle_data(dataset_identifier, destination_dir=r"D:\Kai\DATA_Set_2\X-ray\RSNA-Pneumonia", is_competition=True)
+
     print(f"Dataset downloaded and saved to: {dataset_path}")

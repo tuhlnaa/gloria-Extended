@@ -2,7 +2,7 @@
 # All paths will be converted to Path objects automatically
 
 # Required parameters (must be provided via command line or config file)
-output_dir: "./output/transfer-classification_experiment2"  # Path to save model and results
+output_dir: "./output/transfer-classification_experiment3"  # Path to save model and results
 data_dir: "D:/Kai/DATA_Set_2/X-ray/CheXpert-v1.0-small"    # Path to the dataset directory
 csv_path: null    # Path to the CSV file containing class ID to name mapping
 
@@ -10,18 +10,18 @@ train_csv: "train.csv"  # Path to the specific split CSV file
 valid_csv: "valid.csv"
 test_csv: "valid.csv"   # Using validation set as test set (test set labels hidden)
 
-phase: 'pretrain'
+phase: "gloria_classification"
 
 # Dataset parameters
 dataset:
   name: "chexpert"        # Name of the dataset to use
-  mask_dir: null                  # Optional: Path to directory containing masks
-  selected_classes: null          # List of class names to use (others treated as background)
-  num_workers: 0                  # Number of data loading workers
-  fraction: 0.01 # 1.0  # 🛠️                  # Train split ratio
-  num_classes: 2                  # Number of target classes
+  mask_dir: null          # Optional: Path to directory containing masks
+  selected_classes: null  # List of class names to use (others treated as background)
+  num_workers: 0          # Number of data loading workers
+  fraction: 1.0  # 🛠️     # Train split ratio
+  # num_classes: 2          # Number of target classes
   image: 
-    imsize: 256                   # Target image size
+    imsize: 256           # Target image size
     
 
 # Apply data augmentation for training
@@ -37,12 +37,11 @@ transforms:
 
 # Model parameters
 model:
-  name: "Gloria"
+  name: "gloria_classification"
   # image_size: 256               # Input image size
   batch_size: 64                  # Input batch size for training
   resume: null                    # Resume full model and optimizer state from checkpoint
   pretrained: true                # Use pretrained model
-  # transfer_checkpoint: "E:/Kai_2/CODE_Repository/gloria-Extended/output/checkpoint_epoch_20.pth"  # Transfer learning
   transfer_checkpoint: "D:/Kai/pretrained/Gloria/chexpert_resnet50.ckpt"  # 🛠️ # Transfer learning
   vision:
       model_name: 'resnet_50'
@@ -63,6 +62,8 @@ model:
       temp_attention: 4.0
       temp_similarity: 5.0
       temp_loss: 10.0
+  optimization:
+    use: false
 
 
 # Optimizer parameters
@@ -81,8 +82,8 @@ criterion:
 # Learning rate schedule parameters
 lr_scheduler:
   name: 'plateau'
-  epochs: 50          # 🛠️ default: 50      # Number of epochs to train
-  learning_rate: 1e-4 # 1.0e-3 # 🛠️      # Learning rate for the optimizer
+  epochs: 50           # 🛠️ default: 50      # Number of epochs to train
+  learning_rate: 1e-4  # 🛠️ default: 1e-4    # Learning rate for the optimizer
   warmup_ratio: 0.1               # Ratio of warmup steps
   patience: 10         # 🛠️ default: 7    # Early stopping patience
   monitor: 'val_loss'  # This parameter specifies which metric to watch for making scheduler decisions. 
@@ -114,7 +115,7 @@ logging:
     task_type: "training"                      # ClearML task type
     tags: []                                   # List of tags for ClearML task
   
-  experiment_name: "transfer-gloria2"  # Name for the experiment
+  experiment_name: "transfer-gloria3"  # Name for the experiment
 
 
 # Miscellaneous parameters

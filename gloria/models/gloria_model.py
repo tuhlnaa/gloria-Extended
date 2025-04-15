@@ -11,7 +11,7 @@ from typing import Dict, List, Tuple, Union, Optional
 
 from PIL import Image
 
-from data.dataset import build_transformation
+from data.chexpert_dataset import build_transformation
 from .. import builder
 from .. import loss
 from .. import utils
