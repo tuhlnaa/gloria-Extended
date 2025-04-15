@@ -2,7 +2,7 @@
 # All paths will be converted to Path objects automatically
 
 # Required parameters (must be provided via command line or config file)
-output_dir: "./output/segmentation04"  # 🛠️ # Path to save model and results
+output_dir: "./output/segmentation03"  # 🛠️ # Path to save model and results
 data_dir: "D:/Kai/DATA_Set_2/X-ray/SIIM-ACR-Pneumothorax"    # Path to the dataset directory
 # csv_path: null    # Path to the CSV file containing class ID to name mapping
 
@@ -37,7 +37,7 @@ model:
   # image_size: 256               # Input image size
   batch_size: 8                   # Input batch size for training
   resume: null                    # Resume full model and optimizer state from checkpoint
-  pretrained: null                # Use pretrained model
+  pretrained: 'imagenet'          # Use pretrained model
   transfer_checkpoint: null
   #transfer_checkpoint: "D:/Kai/pretrained/Gloria/chexpert_resnet50.ckpt"       # Transfer learning
   optimization:
@@ -79,7 +79,7 @@ lr_scheduler:
 # Device & distributed training parameters
 device:
   amp: "no"                       # Automatic mixed precision: "no", "fp16", "bf16"
-  device: "cuda:0"                # Device to use: "cpu", "cuda:0", etc.
+  device: "cuda:1"                # Device to use: "cpu", "cuda:0", etc.
 
 
 # Logging parameters
@@ -99,12 +99,12 @@ logging:
     task_type: "training"                      # ClearML task type
     tags: []                                   # List of tags for ClearML task
   
-  experiment_name: "segmentation04"  # 🛠️ # Name for the experiment
+  experiment_name: "segmentation03"  # 🛠️ # Name for the experiment
 
 
 # Miscellaneous parameters
 misc:
-  monitor_metric: "val_loss"
+  monitor_metric: "val_dice"
   seed: 42                      # Random seed
   save_freq: 1                  # Frequency of saving checkpoints (epochs)
   visualization_interval: 1000  # Visualize attention maps periodically (iterations)

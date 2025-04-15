@@ -4,7 +4,7 @@ from typing import Dict, Tuple
 from tqdm.auto import tqdm
 from omegaconf import OmegaConf
 
-from gloria.utils.metrics import SegmentationMetrics
+from gloria.utils.metrics import SegmentationMetricsV2
 
 class SegmentationValidator:
     """Validator class for image segmentation models."""
@@ -16,45 +16,44 @@ class SegmentationValidator:
         self.config = config
         self.device = config.device.device
 
+
     def validate(self, val_loader) -> Dict[str, float]:
         """Validate the model on the validation set."""
         self.model.eval()
         
         # Create metrics tracker
-        metrics = SegmentationMetrics(split='val')
+        metrics = SegmentationMetricsV2(split='val', num_classes = self.config.dataset.num_classes)
         metrics.reset()
         
         with torch.no_grad():
             for batch in tqdm(val_loader, desc="Validate"):
-                x, y = self._prepare_batch(batch)
+                image, mask = self._prepare_batch(batch)
+                logits = self.model(image)            # Forward pass
+                loss = self.criterion(logits, mask)  # Compute loss
                 
-                logits = self.model(x)            # Forward pass
-                logits = logits.squeeze()   
-                loss = self.criterion(logits, y)  # Compute loss
-                
-                metrics.update(logits, y, loss)
+                metrics.update(logits, mask, loss)
         
         return metrics.compute()
     
+
     def test(self, test_loader) -> Dict[str, float]:
         """Test the model on the test set."""
         self.model.eval()
         
         # Create metrics tracker
-        metrics = SegmentationMetrics(split='test')
+        metrics = SegmentationMetricsV2(split='test')
         metrics.reset()
         
         with torch.no_grad():
             for batch in tqdm(test_loader, desc="Test"):
-                x, y = self._prepare_batch(batch)
-                
+                x, y = self._prepare_batch(batch) 
                 logits = self.model(x)
-                logits = logits.squeeze()
                 loss = self.criterion(logits, y)
                 
                 metrics.update(logits, y, loss)
         
         return metrics.compute()
+
 
     def _prepare_batch(self, batch: Tuple) -> Tuple[torch.Tensor, torch.Tensor]:
         """Move batch data to the correct device."""

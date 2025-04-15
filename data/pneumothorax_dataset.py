@@ -231,7 +231,7 @@ class PneumothoraxImageDataset(ImageBaseDataset):
             # Apply transformations
             augmented = self.seg_transform(image=img, mask=mask)
             img = augmented["image"]
-            label = augmented["mask"].squeeze()
+            label = augmented["mask"]
         else:
             # Get classification label
             label = imgid_df.iloc[0]["has_pneumo"]
@@ -344,7 +344,7 @@ def get_pneumothorax_dataloader(
     # Create dataloader with parameters from config
     data_loader = DataLoader(
         dataset,
-        batch_size=config.model.batch_size,
+        batch_size=config.model.batch_size if split == "train" else 1,
         shuffle=(split == "train"),
         num_workers=config.dataset.num_workers,
         pin_memory=getattr(config.model, "pin_memory", False),

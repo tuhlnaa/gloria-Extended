@@ -18,12 +18,7 @@ from utils.logging_utils import LoggingManager
 
 
 def set_seed(seed: int = 42) -> None:
-    """
-    Set random seed for reproducibility.
-    
-    Args:
-        seed: Random seed value
-    """
+    """Set random seed for reproducibility."""
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -105,7 +100,6 @@ def run_training_pipeline(config: OmegaConf) -> Dict[str, float]:
 
     # Set up training components
     trainer = trainer_factory.get_trainer(config, dataloaders['train'])
-
     validator = validator_factory.get_validator(config, trainer.model, trainer.criterion)
     trainer.setup_optimization()
 
@@ -207,5 +201,5 @@ python train.py --config configs\default_gloria_config.yaml
 python train.py --config configs\default_gloria_classification_config.yaml
 
 python train.py --config configs\default_segmentation.yaml
-
+python train.py --config configs\default_segmentation_optimization.yaml
 """

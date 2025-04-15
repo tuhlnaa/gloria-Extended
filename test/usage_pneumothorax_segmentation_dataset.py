@@ -44,7 +44,7 @@ def main():
         print(f"  Data type: {images.dtype}")
         print(f"  Labels type: {labels.dtype}")
         print(f"  Data range: {images.max(), images.min()}")
-        print(f"  Label range: {images.max(), images.min()}")
+        print(f"  Label range: {labels.max(), labels.min()}")
             
         # Only show first 2 batches
         if batch_idx >= 1:

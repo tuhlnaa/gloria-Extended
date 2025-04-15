@@ -41,10 +41,9 @@ model:
   # image_size: 256               # Input image size
   batch_size: 64                  # Input batch size for training
   resume: null                    # Resume full model and optimizer state from checkpoint
-  pretrained: true                # Use pretrained model
   transfer_checkpoint: "D:/Kai/pretrained/Gloria/chexpert_resnet50.ckpt"  # 🛠️ # Transfer learning
   vision:
-      model_name: 'resnet_50'
+      model_name: 'resnet50'
       freeze_cnn: true
       pretrained: "DEFAULT"
       num_targets: 5

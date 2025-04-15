@@ -455,6 +455,9 @@ class ClearMLLogger(BaseLogger):
                 elif "grad" in metric_name:
                     title = "grad"
                     series = metric_name
+                elif metric_name == 'dice':
+                    title = metric_name
+                    series = phase  
                 elif metric_name == 'mean_auroc':
                     title = metric_name
                     series = phase  

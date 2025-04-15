@@ -1,9 +1,12 @@
 import torch
 import torch.nn as nn
 import numpy as np
+import segmentation_models_pytorch as smp
 
 from typing import Dict, Optional
+from torchmetrics.segmentation import DiceScore
 from torchmetrics.classification import MultilabelAUROC, MultilabelAveragePrecision
+
 
 class ClassificationMetrics(nn.Module):
     """A PyTorch module for computing classification metrics using torchmetrics."""
@@ -316,6 +319,89 @@ class SegmentationMetrics(torch.nn.Module):
 
         return torch.mean(dice).detach().item()
     
+
+class SegmentationMetricsV2(torch.nn.Module):
+    """A PyTorch module for computing segmentation metrics."""
+
+    def __init__(self, num_classes: Optional[int] = None, split: str = 'val'):
+        """
+        Initialize the classification metrics tracker.
+
+        Args:
+            num_classes: Number of classes to track metrics for (can be inferred from data)
+            split: The data split ('train', 'val', or 'test')
+        """
+        super().__init__()
+        self.split = split
+        self.num_classes = num_classes
+        
+        # Initialize metrics if num_classes is known
+        if num_classes is not None:
+            self.dice_metric = DiceScore(
+                num_classes, 
+                input_format='index', 
+                include_background=False
+            )
+        else:
+            raise ValueError("num_classes is None")
+
+        # Reset to initialize states
+        self.reset()
+
+    def reset(self):
+        """Reset all accumulated states for a new computation cycle."""
+        self.logits_list = []
+        self.labels_list = []
+        self.loss_sum = 0.0
+        self.dice_sum = 0.0
+        self.num_batches = 0
+
+    def update(
+            self, 
+            logits: torch.Tensor, 
+            targets: torch.Tensor, 
+            loss: torch.Tensor
+        ) -> None:
+        """Update states with predictions and targets from a new batch."""
+        self.logits_list.append(logits.detach().clone())
+        self.labels_list.append(targets.detach().clone())
+
+        # Update loss tracking if provided
+        if loss is not None:
+            self.loss_sum += loss.item()
+        
+        self.num_batches += 1
+
+
+    def compute(self) -> Dict[str, float]:
+        """Compute final metrics from accumulated data."""
+        if not self.logits_list:
+            print(f"Warning: No data accumulated")
+            return {f"{self.split}_loss": 0.0, f"{self.split}_dice": 0.0}
+        
+        # Concatenate all batch outputs
+        logits_cat = torch.cat(self.logits_list)
+        labels_cat = torch.cat(self.labels_list)
+
+        # Calculate metrics
+        probabilities = torch.sigmoid(logits_cat)
+        predicted_mask = (probabilities > 0.5).to(torch.int64)
+        labels_cat = labels_cat.unsqueeze(1).to(torch.int64)
+
+        mean_dice = self.dice_metric(predicted_mask, labels_cat).cpu().tolist()
+        mean_loss = self.loss_sum / self.num_batches
+
+        # Create metrics dictionary
+        metrics = {
+            f"{self.split}_loss": mean_loss,
+            f"{self.split}_dice": mean_dice,
+        }
+        
+        # Print metrics
+        print(f"{self.split.capitalize()} metrics - Loss: {mean_loss:.4f}, Dice: {mean_dice:.4f}")
+        
+        return metrics
+
 
 class GradientMonitor(nn.Module):
     """A PyTorch module for monitoring gradient norms during training."""

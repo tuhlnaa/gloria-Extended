@@ -8,6 +8,7 @@ import copy
 import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
+import segmentation_models_pytorch as smp
 
 from typing import Dict, Any, List, Optional
 from torch.optim import Optimizer
@@ -29,8 +30,8 @@ from . import loss
 
 
 FEATURE_DIMENSIONS = {
-    "resnet_50": 2048, 
-    "resnet_18": 2048
+    "resnet50": 2048, 
+    "resnet18": 2048
 }
 
 
@@ -234,6 +235,7 @@ def build_loss(config: Dict[str, Any]) -> nn.Module:
     
     loss_functions = {
         "DiceLoss": lambda: loss.segmentation_loss.DiceLoss(),
+        "DiceLossV2": lambda: smp.losses.DiceLoss(mode=config.criterion.label_mode),
         "FocalLoss": lambda: loss.segmentation_loss.FocalLoss(),
         "MixedLoss": lambda: loss.segmentation_loss.MixedLoss(alpha=config.criterion.alpha),
         "GloriaLoss": lambda: GloriaLoss(config),

@@ -89,49 +89,49 @@ class Identity(nn.Module):
         return x
 
 
-@register_model('resnet_18')
-def resnet_18(weights: WeightsType = 'DEFAULT') -> ModelReturnType:
+@register_model('resnet18')
+def resnet18(weights: WeightsType = 'DEFAULT') -> ModelReturnType:
     """ResNet-18 model for feature extraction."""
     return _create_feature_extractor(tv_models.resnet18, weights, 'fc')
 
 
-@register_model('resnet_34')
-def resnet_34(weights: WeightsType = 'DEFAULT') -> ModelReturnType:
+@register_model('resnet34')
+def resnet34(weights: WeightsType = 'DEFAULT') -> ModelReturnType:
     """ResNet-34 model for feature extraction."""
     return _create_feature_extractor(tv_models.resnet34, weights, 'fc')
 
 
-@register_model('resnet_50')
-def resnet_50(weights: WeightsType = 'DEFAULT') -> ModelReturnType:
+@register_model('resnet50')
+def resnet50(weights: WeightsType = 'DEFAULT') -> ModelReturnType:
     """ResNet-50 model for feature extraction."""
     return _create_feature_extractor(tv_models.resnet50, weights, 'fc')
 
 
-@register_model('densenet_121')
-def densenet_121(weights: WeightsType = 'DEFAULT') -> ModelReturnType:
+@register_model('densenet121')
+def densenet121(weights: WeightsType = 'DEFAULT') -> ModelReturnType:
     """DenseNet-121 model for feature extraction."""
     return _create_feature_extractor(tv_models.densenet121, weights, 'classifier')
 
 
-@register_model('densenet_161')
-def densenet_161(weights: WeightsType = 'DEFAULT') -> ModelReturnType:
+@register_model('densenet161')
+def densenet161(weights: WeightsType = 'DEFAULT') -> ModelReturnType:
     """DenseNet-161 model for feature extraction."""
     return _create_feature_extractor(tv_models.densenet161, weights, 'classifier')
 
 
-@register_model('densenet_169')
-def densenet_169(weights: WeightsType = 'DEFAULT') -> ModelReturnType:
+@register_model('densenet169')
+def densenet169(weights: WeightsType = 'DEFAULT') -> ModelReturnType:
     """DenseNet-169 model for feature extraction."""
     return _create_feature_extractor(tv_models.densenet169, weights, 'classifier')
 
 
-@register_model('resnext_50')
-def resnext_50(weights: WeightsType = 'DEFAULT') -> ModelReturnType:
+@register_model('resnext50')
+def resnext50(weights: WeightsType = 'DEFAULT') -> ModelReturnType:
     """ResNeXt-50 (32x4d) model for feature extraction."""
     return _create_feature_extractor(tv_models.resnext50_32x4d, weights, 'fc')
 
 
-@register_model('resnext_101')
-def resnext_101(weights: WeightsType = 'DEFAULT') -> ModelReturnType:
+@register_model('resnext101')
+def resnext101(weights: WeightsType = 'DEFAULT') -> ModelReturnType:
     """ResNeXt-101 (32x8d) model for feature extraction."""
     return _create_feature_extractor(tv_models.resnext101_32x8d, weights, 'fc')
