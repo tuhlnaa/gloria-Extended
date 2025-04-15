@@ -27,8 +27,8 @@ def set_seed(seed: int = 42) -> None:
 
 def main():
     set_seed()
-    config = OmegaConf.load("./test/usage_pretraining_dataset.yaml")
-    #config = OmegaConf.load("./test/usage_chexpert_5x200_dataset.yaml")
+    config = OmegaConf.load("./test/chexpert_multimodal_dataset.yaml")
+    # config = OmegaConf.load("./test/usage_chexpert_5x200_dataset.yaml")
 
     # Print configuration using the logging utility
     LoggingManager.print_config(config, "Configuration")

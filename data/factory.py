@@ -3,8 +3,8 @@ from typing import Dict, Callable, Tuple, Any
 from torch.utils.data import DataLoader
 from omegaconf import OmegaConf
 
-from data.chexpert_dataset import get_chexpert_dataloader
-from data.pretraining_datasetV2 import get_chexpert_multimodal_dataloader
+from data.chexpert_dataset import get_chexpert_dataloader, get_chexpert_multimodal_dataloader
+#from data.pretraining_datasetV2 import get_chexpert_multimodal_dataloader
 
 
 class DatasetFactory:
