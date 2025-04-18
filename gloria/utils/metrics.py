@@ -363,8 +363,8 @@ class SegmentationMetricsV2(torch.nn.Module):
             loss: torch.Tensor
         ) -> None:
         """Update states with predictions and targets from a new batch."""
-        self.logits_list.append(logits.detach().clone())
-        self.labels_list.append(targets.detach().clone())
+        self.logits_list.append(logits.detach().clone().cpu())
+        self.labels_list.append(targets.detach().clone().cpu())
 
         # Update loss tracking if provided
         if loss is not None:

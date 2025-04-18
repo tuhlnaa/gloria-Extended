@@ -263,7 +263,7 @@ class PneumothoraxImageDataset(ImageBaseDataset):
         return mask
         
 
-    def get_transforms(self, mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)):
+    def get_transforms(self):
         """Get transformations pipeline for image augmentation."""
         list_transforms = []
 
@@ -290,6 +290,14 @@ class PneumothoraxImageDataset(ImageBaseDataset):
                 list_transforms.append(Normalize(
                     mean=[0.5, 0.5, 0.5], 
                     std=[0.5, 0.5, 0.5]
+                ))
+            elif self.config.transforms.norm == "zero_one":
+                # Normalize to [0,1] range
+                # For values in [0,255], dividing by 255 scales to [0,1]
+                list_transforms.append(Normalize(
+                    mean=[0.0, 0.0, 0.0],
+                    std=[1.0, 1.0, 1.0],
+                    max_pixel_value=255.0
                 ))
             else:
                 raise ValueError(f"Unsupported normalization method: {self.config.transforms.norm}")
@@ -329,7 +337,8 @@ def get_pneumothorax_dataloader(
     """
     # Create transformation if not provided
     if transform is None:
-        transform = build_transformation(config, split)
+        transform = None
+        # transform = build_transformation(config, split)
     
     # Create dataset
     dataset = PneumothoraxImageDataset(

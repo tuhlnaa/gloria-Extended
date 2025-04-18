@@ -1,14 +1,21 @@
---find-links https://download.pytorch.org/whl/cu121
-torch==2.3.0
-torchvision==0.18.0
-torchaudio==2.3.0
+numpy==1.26.4
 
-nltk>=3.9.1
-transformers>=4.49.0
-lightning>=2.4.0
 albumentations>=2.0.5
-segmentation-models-pytorch>=0.4.0
-pandas>=2.2.3
-omegaconf
-kaggle
+clearml>=1.18.0
+nltk>=3.9.1
+lightning>=2.4.0
 lightning-flash>=0.8.2
+kaggle>=1.6.17
+pandas>=2.2.3
+pydicom>=3.0.1
+omegaconf>=2.3.0
+torchmetrics>=1.6.1
+transformers>=4.49.0
+tensorboard>=2.18.0
+wandb>=0.19.2
+rich>=13.9.4
+opencv-python>=4.10.0
+scikit-learn>=1.6.0
+scikit-image>=0.25.0
+segmentation-models-pytorch>=0.4.0
+mplcyberpunk>=0.7.6
