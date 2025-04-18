@@ -143,11 +143,22 @@ class PneumothoraxImageDataset(ImageBaseDataset):
         config: object,
         split: str = "train",
         transform: Optional[object] = None,
+        positive_only: bool = False,
     ):
-        """Initialize the Pneumothorax dataset."""
+        """Initialize the Pneumothorax dataset.
+        
+        Args:
+            config: Configuration object
+            split: Data split ('train' or 'valid')
+            transform: Optional transforms to apply
+            positive_only: Whether to use only positive samples (with pneumothorax)
+                          If True, uses only samples with pneumothorax for training
+                          If False, uses a balanced dataset of positive and negative samples (default)
+        """
         super().__init__(config, split, transform)
 
         self.config = config
+        self.positive_only = positive_only
             
         # Set up transformations for segmentation if needed
         if config.phase == "segmentation":
@@ -162,9 +173,14 @@ class PneumothoraxImageDataset(ImageBaseDataset):
         # Process class labels (positive/negative samples)
         self.df["class"] = self.df["has_pneumo"].astype(bool)
         
-        # Handle segmentation case - balance positive and negative samples
+        # For segmentation in training phase
         if config.phase == "segmentation" and split == "train":
-            self._balance_segmentation_samples()
+            if self.positive_only:
+                # Keep only positive samples (with pneumothorax)
+                self.df = self.df[self.df["class"] == True]
+            else:
+                # Balance positive and negative samples
+                self._balance_segmentation_samples()
             
         # Apply data fraction sampling if specified in config
         if hasattr(config.dataset, 'fraction') and config.dataset.fraction != 1 and split == "train":
@@ -345,6 +361,7 @@ def get_pneumothorax_dataloader(
         config=config,
         split=split,
         transform=transform,
+        positive_only=True if split == "train" else False,
     )
         
     if len(dataset) == 0:

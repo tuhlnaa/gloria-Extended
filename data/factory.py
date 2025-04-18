@@ -4,6 +4,7 @@ from torch.utils.data import DataLoader
 from omegaconf import OmegaConf
 
 from data.chexpert_dataset import get_chexpert_dataloader, get_chexpert_multimodal_dataloader
+from data.pet_dataset import get_pet_dataloader
 from data.pneumothorax_dataset import get_pneumothorax_dataloader
 #from data.pretraining_datasetV2 import get_chexpert_multimodal_dataloader
 
@@ -22,6 +23,7 @@ class DatasetFactory:
             "chexpert": get_chexpert_dataloader,
             "chexpert_multimodal": get_chexpert_multimodal_dataloader,
             "pneumothorax": get_pneumothorax_dataloader,
+            "pet": get_pet_dataloader,
             # Register other dataset loaders here
         }
     

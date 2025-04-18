@@ -11,7 +11,7 @@ model:
 
 
 dataset:
-  name: chexpert  # Name of the dataset to use
+  name: "pet"  # Name of the dataset to use
   fraction: 1.0   # Train split ratio
   num_workers: 0  # Input batch size for training
   image: 

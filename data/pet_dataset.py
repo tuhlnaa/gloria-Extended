@@ -107,7 +107,7 @@ def get_transforms(config):
     return Compose(list_transforms)
 
 
-def get_cat_dataloader(
+def get_pet_dataloader(
         config,
         split: str = "train",
         view_type: str = "Frontal",

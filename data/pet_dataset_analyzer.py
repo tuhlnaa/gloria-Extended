@@ -1,8 +1,8 @@
 """
-Oxford Pet Dataset Cat Analysis Tool
+Oxford Pet Dataset Segmentation Analysis Tool
 
 This script analyzes the Oxford Pet Dataset from the segmentation_models_pytorch library
-to count and visualize the distribution of cat/dog classes and segmentation masks.
+to count and visualize the distribution of segmentation masks between training and validation sets.
 """
 
 import argparse
@@ -57,19 +57,13 @@ class OxfordPetAnalyzer:
             3: "Background"
         }
 
+
     def analyze_dataset(self, dataset) -> Dict:
-        """
-        Analyze the dataset to extract statistics.
-        
-        Args:
-            dataset: SimpleOxfordPetDataset to analyze
-            
-        Returns:
-            Dictionary containing dataset statistics
-        """
+        """Analyze the dataset to extract statistics."""
         stats = {
             "size": len(dataset),
-            "segmentation_classes": Counter(),
+            "has_segmentation": 0,  # Count of images with segmentation (any non-zero label)
+            "no_segmentation": 0,   # Count of images without segmentation (only zero labels)
             "mask_stats": {
                 "min_ratio": float('inf'),
                 "max_ratio": 0,
@@ -77,125 +71,100 @@ class OxfordPetAnalyzer:
             }
         }
         
-        # Sample some images to analyze segmentation masks
-        sample_size = min(100, len(dataset))
-        indices = random.sample(range(len(dataset)), sample_size)
-        
+        # Process the entire dataset
         total_mask_ratio = 0
-        for idx in indices:
+        sample_for_ratio = min(100, len(dataset))  # Use sampling only for mask ratio stats to save time
+        
+        # First pass: count all images with/without segmentation
+        for idx in range(len(dataset)):
             item = dataset[idx]
-            image = item["image"]
             mask = item["mask"]
             
             # Convert to numpy if needed
             if isinstance(mask, torch.Tensor):
                 mask = mask.numpy()
             
-            # Count unique segmentation classes
-            unique_classes, counts = np.unique(mask, return_counts=True)
-            for cls, count in zip(unique_classes, counts):
-                stats["segmentation_classes"][int(cls)] += 1
-                
-            # Calculate foreground ratio (assuming 0 is background)
-            if 0 in unique_classes:
-                background_idx = np.where(unique_classes == 0)[0][0]
-                background_pixels = counts[background_idx]
-                total_pixels = mask.size
-                foreground_ratio = 1.0 - (background_pixels / total_pixels)
-                
-                # Update mask stats
-                stats["mask_stats"]["min_ratio"] = min(stats["mask_stats"]["min_ratio"], foreground_ratio)
-                stats["mask_stats"]["max_ratio"] = max(stats["mask_stats"]["max_ratio"], foreground_ratio)
-                total_mask_ratio += foreground_ratio
+            # Check if the mask has any segmentation (any non-zero label)
+            unique_values = np.unique(mask)
+            has_segmentation = any(val != 0 for val in unique_values)
+            
+            if has_segmentation:
+                stats["has_segmentation"] += 1
+            else:
+                stats["no_segmentation"] += 1
+            
+            # Only calculate mask ratios for a sample to save processing time
+            if idx < sample_for_ratio:
+                # Calculate foreground ratio (assuming 0 is background)
+                if 0 in unique_values:
+                    background_pixels = np.sum(mask == 0)
+                    total_pixels = mask.size
+                    foreground_ratio = 1.0 - (background_pixels / total_pixels)
+                    
+                    # Update mask stats
+                    stats["mask_stats"]["min_ratio"] = min(stats["mask_stats"]["min_ratio"], foreground_ratio)
+                    stats["mask_stats"]["max_ratio"] = max(stats["mask_stats"]["max_ratio"], foreground_ratio)
+                    total_mask_ratio += foreground_ratio
         
         # Calculate average mask ratio
-        if sample_size > 0:
-            stats["mask_stats"]["avg_ratio"] = total_mask_ratio / sample_size
+        if sample_for_ratio > 0:
+            stats["mask_stats"]["avg_ratio"] = total_mask_ratio / sample_for_ratio
             
         return stats
 
+
     def create_dataset_comparison(self) -> pd.DataFrame:
-        """
-        Create a comparison of training and validation datasets.
+        """Create a comparison of training and validation datasets focusing on segmentation counts."""
+        result_data = []
         
-        Returns:
-            DataFrame comparing dataset statistics
-        """
-        comparison_data = []
-        
-        # Add dataset size information
-        comparison_data.extend([
-            {"Dataset": "Training", "Metric": "Number of Images", "Value": self.train_stats["size"]},
-            {"Dataset": "Validation", "Metric": "Number of Images", "Value": self.valid_stats["size"]},
+        # Add segmentation statistics (has pet vs no pet)
+        result_data.extend([
+            {'Dataset': 'Training', 'Category': 'Has Pet', 'Count': self.train_stats["has_segmentation"]},
+            {'Dataset': 'Training', 'Category': 'No Pet', 'Count': self.train_stats["no_segmentation"]},
+            {'Dataset': 'Validation', 'Category': 'Has Pet', 'Count': self.valid_stats["has_segmentation"]},
+            {'Dataset': 'Validation', 'Category': 'No Pet', 'Count': self.valid_stats["no_segmentation"]}
         ])
-        
-        # Add segmentation class information
-        for dataset_name, stats in [("Training", self.train_stats), ("Validation", self.valid_stats)]:
-            for cls, count in stats["segmentation_classes"].items():
-                class_name = self.class_names.get(cls, f"Class {cls}")
-                comparison_data.append({
-                    "Dataset": dataset_name,
-                    "Metric": f"{class_name} Instances",
-                    "Value": count
-                })
-                
-        # Add mask statistics
-        for dataset_name, stats in [("Training", self.train_stats), ("Validation", self.valid_stats)]:
-            for stat_name, value in stats["mask_stats"].items():
-                if stat_name != "min_ratio" and stat_name != "max_ratio":
-                    formatted_name = " ".join(s.capitalize() for s in stat_name.split("_"))
-                    comparison_data.append({
-                        "Dataset": dataset_name,
-                        "Metric": f"{formatted_name} Mask",
-                        "Value": value
-                    })
-                
-        return pd.DataFrame(comparison_data)
+       
+        return pd.DataFrame(result_data)
+
 
     def visualize_dataset_comparison(self, comparison_df: pd.DataFrame, output_path: str) -> None:
-        """Create a grouped bar plot visualization of the dataset comparison."""
-        plt.figure(figsize=(10, 6))
+        """Create a bar plot visualization comparing segmentation counts between training and validation sets."""
+        print(comparison_df)
+        plt.figure(figsize=(8, 6))
         
-        # Define color palette
+        # Define color palette (Data volume ranking)
         palette_name = 'coolwarm'
-        
+        pal = sns.color_palette(palette_name, len(comparison_df['Dataset']))
+        rank = comparison_df['Count'].argsort().argsort()
+        palette_list = list(np.array(pal)[rank])
+
         plt.style.use('cyberpunk')
-        
-        # Filter dataframe to include only numeric metrics
-        numeric_df = comparison_df[comparison_df["Metric"].isin([
-            "Number of Images", 
-            "Cat Instances", 
-            "Dog Instances", 
-            "Background Instances",
-            "Avg Ratio Mask"
-        ])]
-        
-        # Pivot the dataframe for easier plotting
-        pivot_df = numeric_df.pivot(index="Metric", columns="Dataset", values="Value")
-        
-        ax = pivot_df.plot(kind='bar', figsize=(10, 6))
-        
+        ax = sns.barplot(
+            x='Dataset', 
+            y='Count', 
+            hue='Category',
+            data=comparison_df,
+            gap=0.05,
+            width=0.7
+        )
+
         # Set title and labels
-        ax.set_title('Oxford Pet Dataset Statistics', fontsize=16)
-        ax.set_xlabel('Metric', fontsize=14)
-        ax.set_ylabel('Value', fontsize=14)
+        ax.set_title('Pet Segmentation Counts by Dataset', fontsize=16)
+        ax.set_xlabel('Dataset', fontsize=14)
+        ax.set_ylabel('Count', fontsize=14)
         
         # Add count labels on the bars
         for container in ax.containers:
-            ax.bar_label(container, fmt='%.1f', fontsize=10)
+            ax.bar_label(container, fmt='%d', fontsize=13)
         
         # Adjust layout and save
         plt.tight_layout()
         plt.savefig(output_path, dpi=150)
 
+
     def visualize_sample_images(self, num_samples: int, output_path: str) -> None:
-        """
-        Visualize random sample images and their segmentation masks.
-        
-        Args:
-            num_samples: Number of samples to visualize
-            output_path: Path to save the visualization
-        """
+        """Visualize random sample images and their segmentation masks."""
         # Sample random images from the training set
         indices = random.sample(range(len(self.train_dataset)), num_samples)
         
@@ -235,6 +204,7 @@ class OxfordPetAnalyzer:
         plt.tight_layout()
         plt.savefig(output_path, dpi=150)
 
+
     def print_summary(self) -> None:
         """Print a summary of the dataset."""
         print(f"Oxford Pet Dataset Summary:")
@@ -242,11 +212,13 @@ class OxfordPetAnalyzer:
         print(f"  - Training set: {self.train_stats['size']} images")
         print(f"  - Validation set: {self.valid_stats['size']} images")
         
-        print("\nSegmentation Classes:")
-        for cls, class_name in self.class_names.items():
-            train_count = self.train_stats["segmentation_classes"].get(cls, 0)
-            valid_count = self.valid_stats["segmentation_classes"].get(cls, 0)
-            print(f"  - {class_name}: {train_count} in training, {valid_count} in validation")
+        print("\nSegmentation Statistics:")
+        print(f"  - Training set:")
+        print(f"    * Images with pet segmentation: {self.train_stats['has_segmentation']}")
+        print(f"    * Images without pet segmentation: {self.train_stats['no_segmentation']}")
+        print(f"  - Validation set:")
+        print(f"    * Images with pet segmentation: {self.valid_stats['has_segmentation']}")
+        print(f"    * Images without pet segmentation: {self.valid_stats['no_segmentation']}")
         
         print("\nMask Statistics:")
         for dataset_name, stats in [("Training", self.train_stats), ("Validation", self.valid_stats)]:
@@ -311,6 +283,6 @@ Usage example:
 
 python cat_analyzer.py --data_dir "./data/oxford_pet_dataset" --stats_output "./output/dataset_stats.png" --samples_output "./output/sample_images.png"
 
-python data\pet_analyzer.py --data_dir "D:\Kai\DATA_Set_2" --stats_output "./output/dataset_stats.png" --samples_output "./output/sample_images.png"
+python data\pet_dataset_analyzer.py --data_dir "D:\Kai\DATA_Set_2" --stats_output "./output/dataset_stats.png" --samples_output "./output/sample_images.png"
 
 """

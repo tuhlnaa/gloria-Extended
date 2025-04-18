@@ -10,7 +10,7 @@ from omegaconf import OmegaConf
 PROJECT_ROOT = Path(__file__).parents[1]
 sys.path.append(str(PROJECT_ROOT))
 
-from data.pet_dataset import get_cat_dataloader
+from data.pet_dataset import get_pet_dataloader
 from utils.logging_utils import LoggingManager
 
 
@@ -32,7 +32,7 @@ def main():
     LoggingManager.print_config(config, "Configuration")
 
     # Create dataloader
-    data_loader, _ = get_cat_dataloader(config, split="train")
+    data_loader, _ = get_pet_dataloader(config, split="train")
 
     # Iterate through batches
     for batch_idx, (images, labels) in enumerate(data_loader):
