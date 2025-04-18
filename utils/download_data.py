@@ -42,8 +42,13 @@ if __name__ == "__main__":
     
     dataset_identifier = "siim-acr-pneumothorax-segmentation"
     #dataset_path = download_kaggle_data(dataset_identifier, destination_dir=r"./dataset/X-ray/SIIM-ACR-Pneumothorax", is_competition=True)
-    
+
+    dataset_identifier = "iamtapendu/rsna-pneumonia-processed-dataset"
+    dataset_path = download_kaggle_data(dataset_identifier, destination_dir=r"D:\Kai\DATA_Set_2\X-ray\RSNA-Pneumonia")
+
     dataset_identifier = "rsna-pneumonia-detection-challenge"
-    dataset_path = download_kaggle_data(dataset_identifier, destination_dir=r"D:\Kai\DATA_Set_2\X-ray\RSNA-Pneumonia", is_competition=True)
+    #dataset_path = download_kaggle_data(dataset_identifier, destination_dir=r"D:\Kai\DATA_Set_2\X-ray\RSNA-Pneumonia", is_competition=True)
+
+
 
     print(f"Dataset downloaded and saved to: {dataset_path}")
