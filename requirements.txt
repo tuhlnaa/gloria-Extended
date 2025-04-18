@@ -1,3 +1,20 @@
+# [Windows] - PowerShell
+# Get-Content requirements.txt | ForEach-Object {
+#     if ($_ -match "\S" -and -not $_.StartsWith("#")) {
+#         Write-Host "Installing $_..." -ForegroundColor Cyan
+#         pip install $_
+#     }
+# }
+
+# [Linux]
+# while read line; do
+#   # Skip empty lines and comments
+#   if [[ -n "$line" && ! "$line" =~ ^[[:space:]]*# ]]; then
+#     echo "Installing $line..."
+#     pip install $line
+#   fi
+# done < requirements.txt
+
 numpy==1.26.4
 
 albumentations>=2.0.5

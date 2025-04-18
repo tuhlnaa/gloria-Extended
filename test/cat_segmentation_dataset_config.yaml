@@ -1,0 +1,31 @@
+# Required parameters (must be provided via command line or config file)
+data_dir: "D:/Kai/DATA_Set_2"    # Path to the dataset directory
+train_csv: "stage_1_train_images.csv"  # Path to the specific split CSV file
+valid_csv: "stage_1_test_images.csv"
+#test_csv: "valid.csv"   # Using validation set as test set (test set labels hidden)
+
+phase: "segmentation"
+
+model:
+  batch_size: 16  # Batch size
+
+
+dataset:
+  name: chexpert  # Name of the dataset to use
+  fraction: 1.0   # Train split ratio
+  num_workers: 0  # Input batch size for training
+  image: 
+    imsize: 256   # Target image size
+    
+
+# Uses transforms built from config
+transforms:  
+  norm: "zero_one"  # "half"  "imagenet"  "zero_one"
+  random_crop:
+    crop_size: 224
+  # random_horizontal_flip: 0.5
+  # random_affine: null
+  # color_jitter: null
+  # norm: norm
+
+
