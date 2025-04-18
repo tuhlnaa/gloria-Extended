@@ -117,8 +117,7 @@ def parse_arguments() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_arguments()
-    
-    # Initialize analyzer
+
     analyzer = PneumothoraxAnalyzer(args.train_csv, args.test_csv)
     
     # Ensure the output directory exists
