@@ -2,9 +2,9 @@
 # All paths will be converted to Path objects automatically
 
 # Required parameters (must be provided via command line or config file)
-output_dir: "./output/experiment4"  # Path to save model and results
-data_dir: "D:\\Kai\\DATA_Set_2\\X-ray\\CheXpert-v1.0-small"    # Path to the dataset directory
-csv_path: null    # Path to the CSV file containing class ID to name mapping
+output_dir: "./output/experiment01"                      # Path to save model and results
+data_dir: "D:/Kai/DATA_Set_2/X-ray/CheXpert-v1.0-small"  # Path to the dataset directory
+
 
 train_csv: "train.csv"  # Path to the specific split CSV file
 valid_csv: "valid.csv"
@@ -14,14 +14,12 @@ phase: "classification"
 
 # Dataset parameters
 dataset:
-  name: "chexpert"        # Name of the dataset to use
-  mask_dir: null                  # Optional: Path to directory containing masks
-  selected_classes: null          # List of class names to use (others treated as background)
-  num_workers: 0                  # Number of data loading workers
-  fraction: 0.01 # 1.0  # 🛠️                  # Train split ratio
-  # num_classes: 2                  # Number of target classes
+  name: "chexpert"  # Name of the dataset to use
+  num_workers: 0    # Number of data loading workers
+  fraction: 1.0     # 🛠️  # Train split ratio
+  # num_classes: 2  # Number of target classes
   image: 
-    imsize: 256                   # Target image size
+    imsize: 256     # Target image size
     
 
 # Apply data augmentation for training
@@ -37,22 +35,24 @@ transforms:
 
 # Model parameters
 model:
-  # image_size: 256               # Input image size
-  batch_size: 64                  # Input batch size for training
-  resume: null                    # Resume full model and optimizer state from checkpoint
-  transfer_checkpoint: null       # Transfer learning
+  batch_size: 64             # Input batch size for training
+  resume: null               # Resume full model and optimizer state from checkpoint
+  transfer_checkpoint: null  # Transfer learning
   vision:
       model_name: 'resnet50'
       freeze_cnn: true
       pretrained: "DEFAULT"
       num_targets: 5
-
+  optimization:
+    use: false
+    hidden_dim: 512    # 🛠️
+    dropout_rate: 0.5  # 🛠️
 
 # Optimizer parameters
 optimizer:
   name: "Adam"
-  weight_decay: 1e-6 # 0.01 # 🛠️ default: 0.01     # Weight decay factor
-  clip_grad: 0.25    # 1.0  # 🛠️ default: 0.25
+  weight_decay: 1e-6   # 🛠️ # Weight decay factor
+  clip_grad: 0.25      # 🛠️
 
 
 # Regularization parameters
@@ -64,10 +64,10 @@ criterion:
 # Learning rate schedule parameters
 lr_scheduler:
   name: 'plateau'
-  epochs: 50          # 🛠️ default: 50      # Number of epochs to train
-  learning_rate: 1e-4 # 1.0e-3 # 🛠️      # Learning rate for the optimizer
-  warmup_ratio: 0.1               # Ratio of warmup steps
-  patience: 10         # 🛠️ default: 7    # Early stopping patience
+  epochs: 50           # 🛠️ # Number of epochs to train
+  learning_rate: 1e-4  # 🛠️ # Learning rate for the optimizer
+  warmup_ratio: 0.1    # Ratio of warmup steps
+  patience: 10         # 🛠️ # Early stopping patience
   monitor: 'val_loss'  # This parameter specifies which metric to watch for making scheduler decisions. 
   interval: 'epoch'    # This determines when the scheduler should be called. 
   val_check_interval: null
@@ -76,13 +76,13 @@ lr_scheduler:
 
 # Device & distributed training parameters
 device:
-  amp: "no"                       # Automatic mixed precision: "no", "fp16", "bf16"
-  device: "cuda:1"                # Device to use: "cpu", "cuda:0", etc.
+  amp: "no"            # Automatic mixed precision: "no", "fp16", "bf16"
+  device: "cuda:0"     # Device to use: "cpu", "cuda:0", etc.
 
 
 # Logging parameters
 logging:
-  logger: "clearml"           # Logger to use: "tensorboard", "neptune", "clearml"
+  logger: "clearml"    # Logger to use: "tensorboard", "neptune", "clearml"
   
   # Neptune logger parameters (only required if logger="neptune")
   neptune:
@@ -97,7 +97,7 @@ logging:
     task_type: "training"                      # ClearML task type
     tags: []                                   # List of tags for ClearML task
   
-  experiment_name: "experiment4"  # Name for the experiment
+  experiment_name: "experiment01"  # Name for the experiment
 
 
 # Miscellaneous parameters

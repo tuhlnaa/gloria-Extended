@@ -1,0 +1,29 @@
+# Required parameters (must be provided via command line or config file)
+data_dir: "D:/Kai/DATA_Set_2/X-ray/RSNA-Pneumonia"    # Path to the dataset directory
+train_csv: "stage_2_train_labels.csv"  # Path to the specific split CSV file
+
+phase: "classification"
+
+model:
+  batch_size: 16  # Batch size
+
+
+dataset:
+  name: chexpert  # Name of the dataset to use
+  fraction: 1.0   # Train split ratio
+  num_workers: 0  # Input batch size for training
+  image: 
+    imsize: 256   # Target image size
+    
+
+# Uses transforms built from config
+transforms:  
+  norm: "imagenet"  # "half"  "imagenet"  "zero_one"
+  random_crop:
+    crop_size: 224
+  # random_horizontal_flip: 0.5
+  # random_affine: null
+  # color_jitter: null
+  # norm: norm
+
+

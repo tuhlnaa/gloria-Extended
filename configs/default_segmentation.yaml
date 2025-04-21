@@ -14,36 +14,29 @@ phase: "segmentation"
 
 # Dataset parameters
 dataset:
-  name: "pneumothorax"         # Name of the dataset to use
-  # mask_dir: null               # Optional: Path to directory containing masks
-  # selected_classes: null       # List of class names to use (others treated as background)
-  num_workers: 0               # Number of data loading workers
-  fraction: 0.1  # 🛠️          # Train split ratio
-  num_classes: 2                # Number of target classes
+  name: "pneumothorax"  # Name of the dataset to use
+  num_workers: 0        # Number of data loading workers
+  fraction: 1.0         # Train split ratio
+  num_classes: 2        # Number of target classes
   image: 
-    imsize: 256                 # Target image size
+    imsize: 256         # Target image size
 
 
 # Apply data augmentation for training
 transforms:  
-  norm: "half"                 # "imagenet", "half"
+  norm: "half"      # "imagenet", "half"
   random_crop:
-    crop_size: 224                 # Size of random crop for data augmentation
+    crop_size: 224  # Size of random crop for data augmentation
 
 
 # Model parameters
 model:
   name: "segmentation"
-  # image_size: 256               # Input image size
-  batch_size: 8                   # Input batch size for training
-  resume: null                    # Resume full model and optimizer state from checkpoint
-  pretrained: null                # Use pretrained model
-  transfer_checkpoint: null
-  #transfer_checkpoint: "D:/Kai/pretrained/Gloria/chexpert_resnet50.ckpt"       # Transfer learning
-  optimization:
-    use: false
-    hidden_dim: 512    # 🛠️
-    dropout_rate: 0.5  # 🛠️
+  batch_size: 8              # Input batch size for training
+  resume: null               # Resume full model and optimizer state from checkpoint
+  pretrained: null           # Use pretrained model
+  transfer_checkpoint: null  # Transfer learning
+  # transfer_checkpoint: "D:/Kai/pretrained/Gloria/chexpert_resnet50.ckpt"  # Transfer learning
   vision:
       model_name: 'resnet50'
 
@@ -51,13 +44,13 @@ model:
 # Optimizer parameters
 optimizer:
   name: "Adam"
-  weight_decay: 1e-6   # 🛠️     # Weight decay factor
+  weight_decay: 1e-6   # 🛠️ # Weight decay factor
   clip_grad: null      # 🛠️
 
 
 # Regularization parameters
 criterion: 
-  name: "DiceLossV2"     # 🛠️
+  name: "DiceLossV2"    # 🛠️
   class_weights: null
   alpha: 10.0
   label_mode: 'binary'  # 'binary', 'multiclass', 'multilabel'
@@ -66,7 +59,7 @@ criterion:
 # Learning rate schedule parameters
 lr_scheduler:
   name: 'plateau'        # 🛠️  'LinearWarmupCosine'  'plateau'
-  epochs: 50             # 🛠️ 100  Number of epochs to train
+  epochs: 50             # 🛠️  Number of epochs to train
   learning_rate: 5e-4    # 🛠️  # Learning rate for the optimizer
   warmup_ratio: 0.1      # Ratio of warmup steps
   patience: 20           # 🛠️ # Early stopping patience
@@ -78,13 +71,13 @@ lr_scheduler:
 
 # Device & distributed training parameters
 device:
-  amp: "no"                       # Automatic mixed precision: "no", "fp16", "bf16"
-  device: "cuda:0"                # Device to use: "cpu", "cuda:0", etc.
+  amp: "no"         # Automatic mixed precision: "no", "fp16", "bf16"
+  device: "cuda:0"  # Device to use: "cpu", "cuda:0", etc.
 
 
 # Logging parameters
 logging:
-  logger: "clearml"           # Logger to use: "tensorboard", "neptune", "clearml"
+  logger: "clearml"  # Logger to use: "tensorboard", "neptune", "clearml"
   
   # Neptune logger parameters (only required if logger="neptune")
   neptune:

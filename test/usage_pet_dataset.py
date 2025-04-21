@@ -26,7 +26,7 @@ def set_seed(seed: int = 42) -> None:
 
 def main():
     set_seed()
-    config = OmegaConf.load("./test/pet_segmentation_dataset_config.yaml")
+    config = OmegaConf.load("./test/pet_dataset_config.yaml")
 
     # Print configuration using the logging utility
     LoggingManager.print_config(config, "Configuration")

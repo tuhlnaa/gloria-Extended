@@ -10,7 +10,7 @@ from omegaconf import OmegaConf
 PROJECT_ROOT = Path(__file__).parents[1]
 sys.path.append(str(PROJECT_ROOT))
 
-from data.pneumothorax_dataset import get_pneumothorax_dataloader
+from data.pneumonia_dataset import get_pneumonia_dataloader
 from utils.logging_utils import LoggingManager
 
 
@@ -26,13 +26,13 @@ def set_seed(seed: int = 42) -> None:
 
 def main():
     set_seed()
-    config = OmegaConf.load("./test/pneumothorax_segmentation_dataset_config.yaml")
+    config = OmegaConf.load("./test/pneumonia_dataset_config.yaml")
 
     # Print configuration using the logging utility
     LoggingManager.print_config(config, "Configuration")
 
     # Create dataloader
-    data_loader, _ = get_pneumothorax_dataloader(config, split="train")
+    data_loader, _ = get_pneumonia_dataloader(config, split="train")
 
     # Iterate through batches
     for batch_idx, (images, labels) in enumerate(data_loader):

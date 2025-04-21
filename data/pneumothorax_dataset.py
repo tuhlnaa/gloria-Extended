@@ -63,17 +63,9 @@ class PneumoniaImageDataset(ImageBaseDataset):
             self.df = self.df.sample(frac=config.dataset.frac, random_state=42)
             print(f"Applied dataset fraction {config.dataset.frac}: reduced from {orig_size} to {len(self.df)} samples")
 
+
     def _load_and_split_data(self, config: object, split: str) -> pd.DataFrame:
-        """
-        Load data from CSV and split into train/valid sets since they're now in one file.
-        
-        Args:
-            config: Configuration object
-            split: Data split ('train' or 'valid')
-            
-        Returns:
-            DataFrame containing the appropriate split
-        """
+        """Load data from CSV and split into train/valid sets since they're now in one file."""
         # Load the combined CSV file
         df = pd.read_csv(config.train_csv)
         
@@ -86,7 +78,6 @@ class PneumoniaImageDataset(ImageBaseDataset):
         # Create a deterministic split based on index
         n_samples = len(df)
         indices = np.arange(n_samples)
-        np.random.seed(42)  # For reproducibility
         np.random.shuffle(indices)
         
         split_idx = int(n_samples * (1 - valid_ratio))
@@ -97,6 +88,7 @@ class PneumoniaImageDataset(ImageBaseDataset):
             split_indices = indices[split_idx:]
             
         return df.iloc[split_indices].reset_index(drop=True)
+
 
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
         """Get image and label at the specified index."""
@@ -112,9 +104,11 @@ class PneumoniaImageDataset(ImageBaseDataset):
         
         return img, label
 
+
     def __len__(self) -> int:
         """Get dataset length."""
         return len(self.df)
+        
         
     def read_from_dicom(self, img_path: Union[str, Path]) -> Image.Image:
         """Read and preprocess a DICOM image."""

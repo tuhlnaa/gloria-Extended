@@ -14,36 +14,30 @@ phase: "segmentation"
 
 # Dataset parameters
 dataset:
-  name: "pneumothorax"         # Name of the dataset to use
-  # mask_dir: null               # Optional: Path to directory containing masks
-  # selected_classes: null       # List of class names to use (others treated as background)
-  num_workers: 0               # Number of data loading workers
-  fraction: 1.0  # 🛠️          # Train split ratio
-  num_classes: 2                # Number of target classes
+  name: "pneumothorax"  # Name of the dataset to use
+  num_workers: 0        # Number of data loading workers
+  fraction: 1.0         # 🛠️  # Train split ratio
+  num_classes: 2        # Number of target classes
   image: 
-    imsize: 256                 # Target image size
+    imsize: 256         # Target image size
 
 
 # Apply data augmentation for training
 transforms:  
-  norm: "imagenet"                 # "imagenet", "half"
+  norm: "imagenet"  # "imagenet", "half"
   random_crop:
-    crop_size: 224                 # Size of random crop for data augmentation
+    crop_size: 224  # Size of random crop for data augmentation
 
 
 # Model parameters
 model:
   name: "segmentation"
-  # image_size: 256               # Input image size
-  batch_size: 8                   # Input batch size for training
-  resume: null                    # Resume full model and optimizer state from checkpoint
-  pretrained: 'imagenet'          # 🛠️ # Use pretrained model
+  # image_size: 256          # Input image size
+  batch_size: 8              # Input batch size for training
+  resume: null               # Resume full model and optimizer state from checkpoint
+  pretrained: 'imagenet'     # 🛠️ # Use pretrained model
   transfer_checkpoint: null
   #transfer_checkpoint: "D:/Kai/pretrained/Gloria/chexpert_resnet50.ckpt"       # Transfer learning
-  optimization:
-    use: false
-    hidden_dim: 512    # 🛠️
-    dropout_rate: 0.5  # 🛠️
   vision:
       model_name: 'resnet50'
 

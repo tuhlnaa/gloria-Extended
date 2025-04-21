@@ -3,7 +3,7 @@
 
 # Required parameters (must be provided via command line or config file)
 output_dir: "./output"  # Path to save model and results
-data_dir: "D:\\Kai\\DATA_Set_2\\X-ray\\CheXpert-v1.0-small"    # Path to the dataset directory
+data_dir: "D:/Kai/DATA_Set_2/X-ray/CheXpert-v1.0-small"    # Path to the dataset directory
 master_csv: "df_chexpert_plus_240401.csv"
 
 phase: "pretrain"
@@ -12,12 +12,12 @@ phase: "pretrain"
 dataset:
   name: "chexpert_multimodal"  # Name of the dataset to use
   num_workers: 0               # Number of data loading workers
-  fraction: 0.01  # 🛠️         # Train split ratio
+  fraction: 1.0                # 🛠️ # Train split ratio
   image: 
     imsize: 256                # Target image size
   text: 
     word_num: 97                  # Maximum number of tokens after tokenization
-    captions_per_image: 5   # 🛠️ default: 5  # Maximum number of words to use per image
+    captions_per_image: 5         # 🛠️ # Maximum number of words to use per image
     full_report: false            # Use full report (true) or single sentence (false)
     use_findings_section: false   # Prioritize findings section if available
   columns:                        # Column names in the CSV
@@ -42,9 +42,9 @@ transforms:
 
 # Model parameters
 model:
-  batch_size: 48                  # Input batch size for training
-  resume: "D:/Kai/pretrained/Gloria/chexpert_resnet50.ckpt" # 🛠️                   # Resume full model and optimizer state from checkpoint
-  transfer_checkpoint: null       # Transfer learning
+  batch_size: 48             # Input batch size for training
+  resume: null               # Resume full model and optimizer state from checkpoint
+  transfer_checkpoint: null  # Transfer learning
   vision:
       model_name: 'resnet50'
       freeze_cnn: true
@@ -68,8 +68,8 @@ model:
 # Optimizer parameters
 optimizer:
   name: "Adam"
-  weight_decay: 1e-6 # 0.01  # 🛠️     # Weight decay factor
-  clip_grad: 1.0    # 1.0    # 🛠️ default: 0.25
+  weight_decay: 1e-6         # 🛠️ # Weight decay factor
+  clip_grad: 0.25            # 🛠️ default: 0.25
 
 
 # Regularization parameters
@@ -80,11 +80,11 @@ criterion:
 
 # Learning rate schedule parameters
 lr_scheduler:
-  name: 'plateau'      # 🛠️ default: 'plateau'
-  epochs: 15           # 🛠️ default: 50         # Number of epochs to train
-  learning_rate: 1e-4  # 🛠️ default: 1e-4     # Learning rate for the optimizer
+  name: 'plateau'      # 🛠️
+  epochs: 50           # 🛠️ # Number of epochs to train
+  learning_rate: 1e-4  # 🛠️ # Learning rate for the optimizer
   warmup_ratio: 0.1    # Ratio of warmup steps
-  patience: 10         # 🛠️ default: 7    # Early stopping patience
+  patience: 20         # 🛠️ # Early stopping patience
   monitor: 'val_loss'  # This parameter specifies which metric to watch for making scheduler decisions. 
   interval: 'epoch'    # This determines when the scheduler should be called. 
   val_check_interval: null
