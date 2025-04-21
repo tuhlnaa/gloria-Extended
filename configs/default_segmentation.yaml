@@ -50,9 +50,8 @@ optimizer:
 
 # Regularization parameters
 criterion: 
-  name: "DiceLossV2"    # 🛠️
-  class_weights: null
-  alpha: 10.0
+  name: "MixedLossV2"   # 🛠️
+  alpha: 10.0           # 🛠️
   label_mode: 'binary'  # 'binary', 'multiclass', 'multilabel'
 
 

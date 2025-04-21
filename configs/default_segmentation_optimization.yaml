@@ -52,15 +52,14 @@ optimizer:
 # Regularization parameters
 criterion: 
   name: "MixedLossV2"  # 🛠️ MixedLossV2 DiceLossV2
-  class_weights: null
-  alpha: 10.0
-  label_mode: 'binary'  # 'binary', 'multiclass', 'multilabel'
+  alpha: 10.0          # 🛠️
+  label_mode: 'binary' # 'binary', 'multiclass', 'multilabel'
 
 
 # Learning rate schedule parameters
 lr_scheduler:
   name: 'plateau'        # 🛠️  'LinearWarmupCosine'  'plateau'
-  epochs: 50             # 🛠️ 100  Number of epochs to train
+  epochs: 100            # 🛠️ 100  Number of epochs to train
   learning_rate: 5e-4    # 🛠️  # Learning rate for the optimizer
   warmup_ratio: 0.1      # Ratio of warmup steps
   patience: 20           # Early stopping patience
@@ -73,7 +72,7 @@ lr_scheduler:
 # Device & distributed training parameters
 device:
   amp: "no"                       # Automatic mixed precision: "no", "fp16", "bf16"
-  device: "cuda:1"                # Device to use: "cpu", "cuda:0", etc.
+  device: "cuda:0"                # Device to use: "cpu", "cuda:0", etc.
 
 
 # Logging parameters

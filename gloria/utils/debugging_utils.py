@@ -240,3 +240,192 @@ def load_checkpoint_with_remapping(model, checkpoint_path, verbose=True):
         print(f"Remaining missing keys: {len(remaining_model_keys)}")
     
     return new_state_dict.keys(), remaining_model_keys
+
+
+
+def print_model_structure(model, prefix='', max_params=10):
+    """
+    Print the structure of a PyTorch model with parameter shapes (limited output).
+    
+    Args:
+        model: PyTorch model
+        prefix: String prefix for nested components
+        max_params: Maximum number of parameters to print
+    """
+    print(f"\n{'='*80}\nMODEL STRUCTURE ANALYSIS (TOP LEVEL)\n{'='*80}")
+    
+    # Get all parameters
+    params = list(model.named_parameters())
+    total_params = len(params)
+    
+    # Print limited number of parameters
+    print(f"Total parameters: {total_params}")
+    print(f"Showing first {min(max_params, total_params)} parameters:")
+    
+    for i, (name, param) in enumerate(params):
+        if i < max_params:
+            print(f"{prefix}{name}: {param.shape}")
+        else:
+            print(f"... and {total_params - max_params} more parameters")
+            break
+    
+    # Print only top-level modules
+    print(f"\nTop-level modules:")
+    for name, _ in model.named_children():
+        print(f"{prefix}Module: {name}")
+
+
+def print_checkpoint_structure(checkpoint, max_keys=10):
+    """
+    Print the structure of a PyTorch checkpoint (limited output).
+    
+    Args:
+        checkpoint: The loaded checkpoint dictionary
+        max_keys: Maximum number of keys to print
+    """
+    print(f"\n{'='*80}\nCHECKPOINT STRUCTURE ANALYSIS\n{'='*80}")
+    
+    # Check if it's a state_dict directly or needs to be extracted
+    if 'state_dict' in checkpoint:
+        state_dict = checkpoint['state_dict']
+        print("Checkpoint contains 'state_dict' key")
+    else:
+        state_dict = checkpoint
+        print("Checkpoint appears to be a direct state_dict")
+    
+    # Print limited number of keys
+    total_keys = len(state_dict)
+    print(f"Total keys in checkpoint: {total_keys}")
+    print(f"Showing first {min(max_keys, total_keys)} keys:")
+    
+    for i, (key, value) in enumerate(state_dict.items()):
+        if i < max_keys:
+            if hasattr(value, 'shape'):
+                print(f"{key}: {value.shape}")
+            else:
+                print(f"{key}: {type(value)}")
+        else:
+            print(f"... and {total_keys - max_keys} more keys")
+            break
+    
+    # Look for potential model structure indicators
+    prefixes = set()
+    for key in state_dict.keys():
+        parts = key.split('.')
+        if len(parts) > 0:
+            prefixes.add(parts[0])
+    
+    print(f"\nTop-level components in checkpoint: {sorted(list(prefixes))}")
+
+
+def compare_model_to_checkpoint(model, checkpoint, max_items=10):
+    """
+    Compare a model structure to a checkpoint to identify mismatches (limited output).
+    
+    Args:
+        model: PyTorch model
+        checkpoint: The loaded checkpoint dictionary
+        max_items: Maximum number of items to print in each category
+    """
+    print(f"\n{'='*80}\nMODEL VS CHECKPOINT COMPARISON\n{'='*80}")
+    
+    # Extract state_dict if needed
+    if 'state_dict' in checkpoint:
+        state_dict = checkpoint['state_dict']
+    else:
+        state_dict = checkpoint
+    
+    # Get model state dict
+    model_state_dict = model.state_dict()
+    
+    # Check for missing keys in checkpoint (keys in model but not in checkpoint)
+    missing_in_checkpoint = set(model_state_dict.keys()) - set(state_dict.keys())
+    if missing_in_checkpoint:
+        print(f"\nKeys in model but missing in checkpoint ({len(missing_in_checkpoint)}):")
+        for i, key in enumerate(sorted(missing_in_checkpoint)):
+            if i < max_items:
+                print(f"  - {key}: {model_state_dict[key].shape}")
+            else:
+                print(f"  - ... and {len(missing_in_checkpoint) - max_items} more")
+                break
+    
+    # Check for extra keys in checkpoint (keys in checkpoint but not in model)
+    extra_in_checkpoint = set(state_dict.keys()) - set(model_state_dict.keys())
+    if extra_in_checkpoint:
+        print(f"\nKeys in checkpoint but missing in model ({len(extra_in_checkpoint)}):")
+        for i, key in enumerate(sorted(extra_in_checkpoint)):
+            if i < max_items:
+                if hasattr(state_dict[key], 'shape'):
+                    print(f"  - {key}: {state_dict[key].shape}")
+                else:
+                    print(f"  - {key}: {type(state_dict[key])}")
+            else:
+                print(f"  - ... and {len(extra_in_checkpoint) - max_items} more")
+                break
+    
+    # Check for shape mismatches
+    common_keys = set(model_state_dict.keys()) & set(state_dict.keys())
+    shape_mismatches = []
+    for key in common_keys:
+        if hasattr(state_dict[key], 'shape') and hasattr(model_state_dict[key], 'shape'):
+            if state_dict[key].shape != model_state_dict[key].shape:
+                shape_mismatches.append((key, state_dict[key].shape, model_state_dict[key].shape))
+    
+    if shape_mismatches:
+        print(f"\nShape mismatches between model and checkpoint ({len(shape_mismatches)}):")
+        for i, (key, checkpoint_shape, model_shape) in enumerate(shape_mismatches):
+            if i < max_items:
+                print(f"  - {key}: checkpoint {checkpoint_shape} vs model {model_shape}")
+            else:
+                print(f"  - ... and {len(shape_mismatches) - max_items} more")
+                break
+    
+    # Summary
+    print(f"\nSummary:")
+    print(f"  - Total keys in model: {len(model_state_dict)}")
+    print(f"  - Total keys in checkpoint: {len(state_dict)}")
+    print(f"  - Common keys: {len(common_keys)}")
+    print(f"  - Missing in checkpoint: {len(missing_in_checkpoint)}")
+    print(f"  - Extra in checkpoint: {len(extra_in_checkpoint)}")
+    print(f"  - Shape mismatches: {len(shape_mismatches)}")
+    
+    # Print key patterns that might be useful for debugging
+    print("\nKey pattern analysis:")
+    model_prefixes = analyze_key_patterns(model_state_dict.keys(), max_items=5)
+    checkpoint_prefixes = analyze_key_patterns(state_dict.keys(), max_items=5)
+    
+    return len(missing_in_checkpoint) == 0 and len(shape_mismatches) == 0
+
+
+def analyze_key_patterns(keys, max_items=5):
+    """Analyze key patterns to find common prefixes and structure"""
+    prefixes = {}
+    for key in keys:
+        parts = key.split('.')
+        if len(parts) > 0:
+            prefix = parts[0]
+            if prefix in prefixes:
+                prefixes[prefix] += 1
+            else:
+                prefixes[prefix] = 1
+    
+    print(f"  Top {min(max_items, len(prefixes))} key prefixes:")
+    for i, (prefix, count) in enumerate(sorted(prefixes.items(), key=lambda x: x[1], reverse=True)):
+        if i < max_items:
+            print(f"    - '{prefix}': {count} keys")
+        else:
+            break
+    
+    return prefixes
+
+"""
+# Debug: Print checkpoint structure
+print_checkpoint_structure(checkpoint)
+
+# Debug: Print model structure to compare with checkpoint
+print_model_structure(gloria_model)
+
+# Debug: Detailed comparison between model and checkpoint
+compare_model_to_checkpoint(gloria_model, model_state_dict)
+
+"""

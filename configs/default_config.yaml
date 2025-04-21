@@ -2,7 +2,7 @@
 # All paths will be converted to Path objects automatically
 
 # Required parameters (must be provided via command line or config file)
-output_dir: "./output/experiment01"                      # Path to save model and results
+output_dir: "./output/experiment00-test"                      # Path to save model and results
 data_dir: "D:/Kai/DATA_Set_2/X-ray/CheXpert-v1.0-small"  # Path to the dataset directory
 
 
@@ -16,7 +16,7 @@ phase: "classification"
 dataset:
   name: "chexpert"  # Name of the dataset to use
   num_workers: 0    # Number of data loading workers
-  fraction: 1.0     # 🛠️  # Train split ratio
+  fraction: 0.02     # 🛠️  # Train split ratio
   # num_classes: 2  # Number of target classes
   image: 
     imsize: 256     # Target image size
@@ -35,6 +35,7 @@ transforms:
 
 # Model parameters
 model:
+  name: "classification"
   batch_size: 64             # Input batch size for training
   resume: null               # Resume full model and optimizer state from checkpoint
   transfer_checkpoint: null  # Transfer learning
@@ -64,7 +65,7 @@ criterion:
 # Learning rate schedule parameters
 lr_scheduler:
   name: 'plateau'
-  epochs: 50           # 🛠️ # Number of epochs to train
+  epochs: 3           # 🛠️ # Number of epochs to train
   learning_rate: 1e-4  # 🛠️ # Learning rate for the optimizer
   warmup_ratio: 0.1    # Ratio of warmup steps
   patience: 10         # 🛠️ # Early stopping patience
@@ -97,7 +98,7 @@ logging:
     task_type: "training"                      # ClearML task type
     tags: []                                   # List of tags for ClearML task
   
-  experiment_name: "experiment01"  # Name for the experiment
+  experiment_name: "experiment00-test"  # Name for the experiment
 
 
 # Miscellaneous parameters

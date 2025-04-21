@@ -12,7 +12,6 @@ from torch.utils.data import DataLoader
 from configs.config import parse_args, save_config
 from data.factory import dataset_factory
 from gloria.engine.factory import trainer_factory, validator_factory
-from gloria.models import pytorch
 from utils.checkpoint import CheckpointHandler
 from utils.logging_utils import LoggingManager
 
@@ -68,11 +67,6 @@ def setup_training(config: OmegaConf) -> Tuple[nn.Module, torch.device, Dict[str
     train_loader, _ = dataset_factory.get_dataloader(config, split="train")
     val_loader, _ = dataset_factory.get_dataloader(config, split="valid")
 
-    # Initialize model
-    model_class = pytorch.PYTORCH_MODULES[config.phase.lower()]
-    model = model_class(config, train_loader)
-    logger.log_model_summary(model)
-
     # Checkpoint handler
     checkpoint_handler = CheckpointHandler(
         save_dir=config.output_dir,
@@ -81,14 +75,14 @@ def setup_training(config: OmegaConf) -> Tuple[nn.Module, torch.device, Dict[str
         save_interval=config.misc.save_freq
     )
 
-    return model, {'train': train_loader, 'val': val_loader}, logger, checkpoint_handler
+    return {'train': train_loader, 'val': val_loader}, logger, checkpoint_handler
 
 
 def run_training_pipeline(config: OmegaConf) -> Dict[str, float]:
     """Run the complete training pipeline."""
 
     # Initialize data loaders and logger
-    model, dataloaders, logger, checkpoint_handler = setup_training(config)
+    dataloaders, logger, checkpoint_handler = setup_training(config)
 
     start_epochs = 0
     patience_counter = 0
@@ -102,6 +96,7 @@ def run_training_pipeline(config: OmegaConf) -> Dict[str, float]:
     trainer = trainer_factory.get_trainer(config, dataloaders['train'])
     validator = validator_factory.get_validator(config, trainer.model, trainer.criterion)
     trainer.setup_optimization()
+    logger.log_model_summary(trainer.model)
 
     # Resume if specified
     if config.model.resume:
@@ -194,7 +189,6 @@ if __name__ == '__main__':
 
 """
 python train.py --config configs\default_config.yaml
-
 python train.py --config configs\default_classification_optimization.yaml
 
 python train.py --config configs\default_gloria_config.yaml

@@ -6,12 +6,11 @@ import torch.backends.cudnn as cudnn
 
 from pathlib import Path
 from omegaconf import OmegaConf
-from torch.utils.data import DataLoader
 
 PROJECT_ROOT = Path(__file__).parents[1]
 sys.path.append(str(PROJECT_ROOT))
 
-from data.pretraining_datasetV3 import get_chexpert_multimodal_dataloader
+from data.chexpert_dataset import get_chexpert_multimodal_dataloader
 from utils.logging_utils import LoggingManager
 
 

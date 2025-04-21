@@ -6,7 +6,9 @@ Adapted from: https://github.com/mrlibw/ControlGAN
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import segmentation_models_pytorch as smp
 
+from torchvision.ops import sigmoid_focal_loss
 from collections import namedtuple
 from typing import Tuple, List, Literal
 
@@ -398,3 +400,59 @@ class GloriaLoss(nn.Module):
                 - global_loss_t2i: Loss for text-to-image matching
         """
         return self.global_loss_fn(img_emb_global, text_emb_global)
+    
+
+class CombinedBinaryLoss(nn.Module):
+    def __init__(self, config, dice_weight=0.5, focal_weight=0.5, bce_weight=0.0,
+                 focal_alpha=0.25, focal_gamma=2.0):
+        """
+        For binary medical image segmentation tasks, the combination of Dice and Focal Loss often provides the best results because:
+        Dice Loss directly optimizes the evaluation metric
+        Focal Loss addresses class imbalance while providing stable gradients
+        Including BCE is less critical when using Focal Loss, as Focal Loss is an enhanced version of BCE designed specifically for class imbalance.
+        """
+        super().__init__()
+        self.config = config
+        self.dice_weight = dice_weight
+        self.focal_weight = focal_weight
+        self.bce_weight = bce_weight
+        
+        if config.criterion.alpha:
+            self.focal_alpha = config.criterion.alpha
+        else:
+            self.focal_alpha = focal_alpha
+
+        self.focal_gamma = focal_gamma
+        
+        # For binary segmentation
+        self.dice = smp.losses.DiceLoss(mode=config.criterion.label_mode)
+        
+        # Only used if bce_weight > 0
+        self.bce = nn.BCEWithLogitsLoss()
+        
+    def forward(self, y_pred, y_true):
+        # For binary segmentation:
+        # - y_pred should be shape (B, 1, H, W) or (B, H, W) with logits
+        # - y_true should be shape (B, 1, H, W) or (B, H, W) with values 0 or 1
+
+        # Calculate individual losses
+        dice_loss = self.dice(y_pred, y_true)
+        
+        # Focal loss
+        if self.config.criterion.label_mode == 'binary':
+            y_pred = y_pred.squeeze(1)
+
+        focal_loss = sigmoid_focal_loss(
+            y_pred, y_true,
+            alpha=self.focal_alpha,
+            gamma=self.focal_gamma,
+            reduction="mean"
+        )
+        
+        # Calculate BCE only if weight > 0
+        bce_loss = self.bce(y_pred, y_true) if self.bce_weight > 0 else 0
+        
+        # Combine losses with weights
+        return (self.dice_weight * dice_loss + 
+                self.focal_weight * focal_loss + 
+                self.bce_weight * bce_loss)

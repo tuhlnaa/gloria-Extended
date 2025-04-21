@@ -167,14 +167,12 @@ class PneumothoraxImageDataset(ImageBaseDataset):
         # Process class labels (positive/negative samples)
         self.df["class"] = self.df["has_pneumo"].astype(bool)
         
-        # For segmentation in training phase
-        if config.phase == "segmentation" and split == "train":
-            if self.positive_only:
-                # Keep only positive samples (with pneumothorax)
-                self.df = self.df[self.df["class"] == True]
-            else:
-                # Balance positive and negative samples
-                self._balance_segmentation_samples()
+        if self.positive_only:
+            # Keep only positive samples (with pneumothorax)
+            self.df = self.df[self.df["class"] == True]
+        else:
+            # Balance positive and negative samples
+            self._balance_segmentation_samples()
             
         # Apply data fraction sampling if specified in config
         if hasattr(config.dataset, 'fraction') and config.dataset.fraction != 1 and split == "train":
@@ -355,7 +353,7 @@ def get_pneumothorax_dataloader(
         config=config,
         split=split,
         transform=transform,
-        positive_only=True if split == "train" else False,
+        positive_only=True
     )
         
     if len(dataset) == 0:

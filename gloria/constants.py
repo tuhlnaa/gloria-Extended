@@ -1,32 +1,3 @@
-from pathlib import Path
-
-# CheXpert constants
-#CHEXPERT_DATA_DIR = Path("/home/mars/git/embeddingx_v2/data/chexpert/CheXpert-v1.0")
-CHEXPERT_DATA_DIR = Path(r"D:\Kai\DATA_Set_2\X-ray\CheXpert-v1.0")
-
-CHEXPERT_ORIGINAL_TRAIN_CSV = CHEXPERT_DATA_DIR / "train.csv"
-# CHEXPERT_TRAIN_CSV = CHEXPERT_DATA_DIR / "train_split.csv"  # train split from train.csv
-# CHEXPERT_VALID_CSV = CHEXPERT_DATA_DIR / "valid_split.csv"  # valid split from train.csv
-
-CHEXPERT_TRAIN_CSV = CHEXPERT_DATA_DIR / "train.csv"  # train split from train.csv
-CHEXPERT_VALID_CSV = CHEXPERT_DATA_DIR / "valid.csv"  # valid split from train.csv
-
-CHEXPERT_TEST_CSV = (
-    CHEXPERT_DATA_DIR / "valid.csv"
-)  # using validation set as test set (test set label hidden)
-CHEXPERT_MASTER_CSV = (
-    CHEXPERT_DATA_DIR / "master_updated.csv"
-)  # contains patient information, not PHI conplient
-CHEXPERT_TRAIN_DIR = CHEXPERT_DATA_DIR / "train"
-CHEXPERT_TEST_DIR = CHEXPERT_DATA_DIR / "valid"
-CHEXPERT_5x200 = CHEXPERT_DATA_DIR / "chexpert_8x200.csv"
-
-CHEXPERT_VALID_NUM = 5000
-CHEXPERT_VIEW_COL = "Frontal/Lateral"
-CHEXPERT_PATH_COL = "Path"
-CHEXPERT_SPLIT_COL = "Split"
-CHEXPERT_REPORT_COL = "Report Impression"
-
 CHEXPERT_TASKS = [
     "No Finding",
     "Enlarged Cardiomediastinum",
@@ -43,6 +14,8 @@ CHEXPERT_TASKS = [
     "Fracture",
     "Support Devices",
 ]
+
+
 CHEXPERT_COMPETITION_TASKS = [
     "Atelectasis",
     "Cardiomegaly",
@@ -59,25 +32,6 @@ CHEXPERT_UNCERTAIN_MAPPINGS = {
     "Edema": 1,
     "Pleural Effusion": 1,
 }
-
-# SIIM Pneumothorax
-PNEUMOTHORAX_DATA_DIR = Path("/data4/siim")
-PNEUMOTHORAX_ORIGINAL_TRAIN_CSV = PNEUMOTHORAX_DATA_DIR / "train-rle.csv"
-PNEUMOTHORAX_TRAIN_CSV = PNEUMOTHORAX_DATA_DIR / "train.csv"
-PNEUMOTHORAX_VALID_CSV = PNEUMOTHORAX_DATA_DIR / "valid.csv"
-PNEUMOTHORAX_TEST_CSV = PNEUMOTHORAX_DATA_DIR / "test.csv"
-PNEUMOTHORAX_IMG_DIR = PNEUMOTHORAX_DATA_DIR / "dicom-images-train"
-PNEUMOTHORAX_IMG_SIZE = 1024
-PNEUMOTHORAX_TRAIN_PCT = 0.7
-
-# RSNA Pneumonia
-PNEUMONIA_DATA_DIR = Path("/data4/rsna_pneumonia/")  # aimi0/rsna_pneumonia')
-PNEUMONIA_ORIGINAL_TRAIN_CSV = PNEUMONIA_DATA_DIR / "stage_2_train_labels.csv"
-PNEUMONIA_TRAIN_CSV = PNEUMONIA_DATA_DIR / "train.csv"
-PNEUMONIA_VALID_CSV = PNEUMONIA_DATA_DIR / "val.csv"
-PNEUMONIA_TEST_CSV = PNEUMONIA_DATA_DIR / "test.csv"
-PNEUMONIA_IMG_DIR = PNEUMONIA_DATA_DIR / "stage_2_train_images"
-PNEUMONIA_TRAIN_PCT = 0.7
 
 
 CHEXPERT_CLASS_PROMPTS = {
