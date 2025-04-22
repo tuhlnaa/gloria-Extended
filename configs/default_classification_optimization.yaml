@@ -15,11 +15,11 @@ phase: "classification"
 # Dataset parameters
 dataset:
   name: "chexpert"     # Name of the dataset to use
-  num_workers: 0               # Number of data loading workers
-  fraction: 1.0  # 🛠️          # Train split ratio
-  # num_classes: 2                # Number of target classes
+  num_workers: 0       # Number of data loading workers
+  fraction: 1.0        # 🛠️ # Train split ratio
+  # num_classes: 2     # Number of target classes
   image: 
-    imsize: 256                 # Target image size
+    imsize: 256        # Target image size
     
 
 # Apply data augmentation for training
@@ -67,14 +67,14 @@ criterion:
 # Learning rate schedule parameters
 lr_scheduler:
   name: 'LinearWarmupCosine'   # 🛠️  'LinearWarmupCosine'  'plateau'
-  epochs: 30             # Number of epochs to train
-  learning_rate: 1.0e-3  # 🛠️  # Learning rate for the optimizer
-  warmup_ratio: 0.1      # Ratio of warmup steps
-  patience: 20           # 🛠️ # Early stopping patience
-  monitor: 'val_loss'    # This parameter specifies which metric to watch for making scheduler decisions. 
-  interval: 'epoch'      # This determines when the scheduler should be called. 
+  epochs: 30                   # Number of epochs to train
+  learning_rate: 1.0e-3        # 🛠️  # Learning rate for the optimizer
+  warmup_ratio: 0.1            # Ratio of warmup steps
+  patience: 20                 # 🛠️ # Early stopping patience
+  monitor: 'val_loss'          # This parameter specifies which metric to watch for making scheduler decisions. 
+  interval: 'epoch'            # This determines when the scheduler should be called. 
   val_check_interval: null
-  step_frequency: 3      # This determines how often the scheduler should be called according to the interval. 
+  step_frequency: 3            # This determines how often the scheduler should be called according to the interval. 
 
 
 # Device & distributed training parameters

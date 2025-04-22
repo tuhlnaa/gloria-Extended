@@ -58,7 +58,7 @@ criterion:
 # Learning rate schedule parameters
 lr_scheduler:
   name: 'plateau'        # 🛠️  'LinearWarmupCosine'  'plateau'
-  epochs: 50             # 🛠️  Number of epochs to train
+  epochs: 100            # 🛠️  Number of epochs to train
   learning_rate: 5e-4    # 🛠️  # Learning rate for the optimizer
   warmup_ratio: 0.1      # Ratio of warmup steps
   patience: 20           # 🛠️ # Early stopping patience

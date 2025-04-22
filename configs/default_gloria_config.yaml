@@ -42,6 +42,7 @@ transforms:
 
 # Model parameters
 model:
+  name: "gloria"
   batch_size: 48             # Input batch size for training
   resume: null               # Resume full model and optimizer state from checkpoint
   transfer_checkpoint: null  # Transfer learning

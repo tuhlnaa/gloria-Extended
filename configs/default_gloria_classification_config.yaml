@@ -16,7 +16,7 @@ phase: "gloria_classification"
 dataset:
   name: "chexpert"  # Name of the dataset to use
   num_workers: 0    # Number of data loading workers
-  fraction: 0.02     # 🛠️ # Train split ratio
+  fraction: 0.02    # 🛠️ # Train split ratio
   # num_classes: 2  # Number of target classes
   image: 
     imsize: 256     # Target image size
@@ -78,7 +78,7 @@ criterion:
 # Learning rate schedule parameters
 lr_scheduler:
   name: 'plateau'
-  epochs: 2           # 🛠️ # Number of epochs to train
+  epochs: 2            # 🛠️ default: 50 # Number of epochs to train
   learning_rate: 1e-4  # 🛠️ # Learning rate for the optimizer
   warmup_ratio: 0.1    # Ratio of warmup steps
   patience: 20         # 🛠️ # Early stopping patience
