@@ -195,7 +195,7 @@ python train.py --config configs\default_gloria_config.yaml
 python train.py --config configs\default_gloria_classification_config.yaml
 
 python train.py --config configs\default_segmentation.yaml
-python train.py --config configs\default_segmentation_optimization.yaml
+python train.py --config configs\default_segmentation_imagenet.yaml
 
 python train.py --config configs\test_segmentation_optimization.yaml
 """

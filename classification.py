@@ -151,8 +151,7 @@ def main():
     
     # Paths configuration
     CHEXPERT_5x200 = r"D:\Kai\pretrained\Gloria\chexpert_5x200.csv"
-    #CHECKPOINT_PATH = r"D:\Kai\pretrained\Gloria\chexpert_resnet50.ckpt"
-    CHECKPOINT_PATH = r"D:\Kai\結果\output\experiment01-gloria\checkpoint_best.pth"
+    CHECKPOINT_PATH = r"D:\Kai\pretrained\Gloria\chexpert_resnet50.ckpt"
     # Load model
     gloria_model = load_gloria_model(config, CHECKPOINT_PATH)
     
