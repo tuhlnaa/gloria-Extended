@@ -30,120 +30,113 @@ We propose an attentionbased framework for learning global and local representat
 
 <br>
 
-## Usage
+## 📊 Performance Comparison
 
-Start by [installing PyTorch 1.7.1](https://pytorch.org/get-started/locally/) with the right CUDA version, then clone this repository and install the dependencies.  
+Pretrained weight: [GLoRIA](https://stanfordmedicine.box.com/s/j5h7q99f3pfi7enc0dom73m4nsm6yzvh), Loss: 9.8907
+
+
+<br>
+
+## 🚀 Quick Start
+
+Start by [installing PyTorch 2.3.0](https://pytorch.org/get-started/locally/) with the right CUDA version, then clone this repository and install the dependencies.  
 
 ```bash
-$ conda install pytorch==1.7.1 torchvision==0.8.2 torchaudio==0.7.2 cudatoolkit=10.1 -c pytorch
-$ pip install git@github.com:marshuang80/gloria.git
-$ conda env create -f environment.yml
-```
+# Clone the repository
+git clone https://github.com/tuhlnaa/gloria-Extended.git
+cd gloria-Extended
 
-Make sure to download the pretrained weights from [here](https://stanfordmedicine.box.com/s/j5h7q99f3pfi7enc0dom73m4nsm6yzvh) and place it in the `./pretrained` folder.
+# Create and activate conda environment
+conda create -n gloria python=3.11
+conda activate gloria
 
-### Load GLoRIA pretrained models 
-```python
-import torch
-import gloria
+pip install torch==2.3.0 torchvision==0.18.0 torchaudio==2.3.0 --index-url https://download.pytorch.org/whl/cu121
 
-# get device
-device = "cuda" if torch.cuda.is_available() else "cpu"
+# [Windows - PowerShell]
+Get-Content requirements.txt | ForEach-Object {
+    if ($_ -match "\S" -and -not $_.StartsWith("#")) {
+        Write-Host "Installing $_..." -ForegroundColor Cyan
+        pip install $_
+    }
+}
 
-# load classifier
-num_class = 5   # 5 class classification
-freeze = True   # freeze encoder and only train linear classifier (less likely to overfit when training data is limited)
-model = gloria.load_img_classification_model(num_cls=num_class, freeze_encoder=freeze, device=device)
-
-# load segmentation model (UNet)
-seg_model = gloria.load_img_segmentation_model(device=device)
-```
-
-### Zeroshot classification for CheXpert5x200
-```python
-import torch
-import gloria
-import pandas as pd 
-
-df = pd.read_csv(gloria.constants.CHEXPERT_5x200)
-
-# load model
-device = "cuda" if torch.cuda.is_available() else "cpu"
-gloria_model = gloria.load_gloria(device=device)
-
-# generate class prompt
-# cls_promts = {
-#    'Atelectasis': ['minimal residual atelectasis ', 'mild atelectasis' ...]
-#    'Cardiomegaly': ['cardiomegaly unchanged', 'cardiac silhouette enlarged' ...] 
-# ...
-# } 
-cls_prompts = gloria.generate_chexpert_class_prompts()
-
-# process input images and class prompts 
-processed_txt = gloria_model.process_class_prompts(cls_prompts, device)
-processed_imgs = gloria_model.process_img(df['Path'].tolist(), device)
-
-# zero-shot classification on 1000 images
-similarities = gloria.zero_shot_classification(
-    gloria_model, processed_imgs, processed_txt)
-
-print(similarities)
-#      Atelectasis  Cardiomegaly  Consolidation     Edema  Pleural Effusion
-# 0       1.371477     -0.416303      -1.023546 -1.460464          0.145969
-# 1       1.550474      0.277534       1.743613  0.187523          1.166638
-# ..           ...           ...            ...       ...               ...
+# [Linux]
+while read line; do
+  # Skip empty lines and comments
+  if [[ -n "$line" && ! "$line" =~ ^[[:space:]]*# ]]; then
+    echo "Installing $line..."
+    pip install $line
+  fi
+done < requirements.txt
 ```
 
 <br>
 
-## Training
+## 💾 Datasets
+To use this code, you will need to download the [CheXpert-v1.0-small](https://www.kaggle.com/datasets/ashery/chexpert), [CheXpert Plus](https://stanfordaimi.azurewebsites.net/datasets/5158c524-d3ab-4e02-96e9-6ee9efc110a1) dataset (11.0 GB) and [SIIM-ACR-Pneumothorax](https://www.kaggle.com/datasets/vbookshelf/pneumothorax-chest-xray-images-and-masks) dataset (4.6 GB).
 
-This codebase has been developed with python version 3.7, PyTorch version 1.7.1, CUDA 10.2 and pytorch-lightning 1.1.4. 
-Example configurations for pretraining and downstream classification can be found in the `./configs`. All training and testing are done using the `run.py` script. For more documentation, please run: 
-
-```bash 
-python run.py --help
+```bash
+python utils/download_data.py
 ```
 
-The preprocessing steps for each dataset can be found in `./gloria/datasets/preprocess_datasets.py`
-
-### Representation Learning
-
-Train the representation learning model with the following command: 
-
-```bash 
-python run.py -c ./configs/chexpert_pretrain_config.yaml --train
+After downloading the `dataset`, place the data in the dataset directory as follows:
+```plain-text
+└── dataset/
+    ├── SIIM-ACR-Pneumothorax/
+    |   ├── png_images/
+    |   ├── png_masks/
+    |   ├── stage_1_train_images.csv
+    |   └── stage_1_test_images.csv
+    └── CheXpert-v1.0-small/
+        ├── train/
+        ├── valid/
+        ├── train.csv
+        ├── valid.csv
+        └── df_chexpert_plus_240401.csv
 ```
-
-* Please note that the CheXpert radiology reports are still under PHI review for HIPPA compliency, and not publicly availible yet.  
-
-### Classification 
-
-Fine-tune the GLoRIA pretrained image model for classification with the following command: 
-
-```bash 
-# chexpert
-python run.py -c ./configs/chexpert_classification_config.yaml --train --test --train_pct 0.01
-# pneumonia
-python run.py -c ./configs/pneumonia_classification_config.yaml --train --test --train_pct 0.01
-```
-
-The **train_pct** flag randomly selects a percentage of the dataset to fine-tune the model. This is use to determine the performance of the model under low data regime.
 
 <br>
 
-## Segmentation
+## 🔧 Training
+```bash
+# Classification
+python train.py --config configs\default_config.yaml  # ImageNet Initial weight
+python train.py --config configs\default_classification_optimization.yaml   # Fine-tuning hyperparameters
+python train.py --config configs\default_gloria_classification_config.yaml  # GLoRIA Transfer Learning
 
-Fine-tune the GLoRIA pretrained image model for segmentation with the following command: 
+# GLoRIA
+python train.py --config configs\default_gloria_config.yaml
 
-```bash 
-# chexpert
-python run.py -c ./configs/pneumothorax_segmentation_config.yaml --train --test --train_pct 0.01
+# Segmentation
+python train.py --config configs\default_segmentation.yaml
+python train.py --config configs\default_segmentation_imagenet.yaml
 ```
 
-### Citation
+<br>
 
+## 📊 Evaluation
+```bash
+python classification.py --config configs\default_gloria_config.yaml
 ```
+
+<br>
+
+## 🤝 Contributing
+Contributions are welcome! If you'd like to add another solution or improve existing implementations:
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingSolution`)
+3. Commit your changes (`git commit -m 'Add some AmazingSolution'`)
+4. Push to the branch (`git push origin feature/AmazingSolution`)
+5. Open a Pull Request
+
+<br>
+
+## 📝 Citation
+
+This repository is based on the following paper:
+
+```bibtex
 @inproceedings{huang2021gloria,
   title={GLoRIA: A Multimodal Global-Local Representation Learning Framework for Label-Efficient Medical Image Recognition},
   author={Huang, Shih-Cheng and Shen, Liyue and Lungren, Matthew P and Yeung, Serena},
@@ -153,5 +146,19 @@ python run.py -c ./configs/pneumothorax_segmentation_config.yaml --train --test 
 }
 ```
 
-#### Acknowledgements
+**Acknowledgements**
 This codebase is adapted from [ControlGAN](https://github.com/mrlibw/ControlGAN)
+
+<br>
+
+## 🎓 Original Work
+
+This is an enhanced implementation of the original [GLoRIA paper](https://github.com/marshuang80/gloria). While we've modernized the codebase, all credit for the original method goes to the paper authors.
+
+<br>
+
+## 📮 Contact
+For questions and feedback:
+
+1. Create an issue in this repository
+2. [Google docs](https://docs.google.com/forms/d/e/1FAIpQLSc7obxpa5UXQyDMLE7nssiXzg8Z5qa_kmLBZzqMuslfu8U8vQ/viewform?usp=header)
