@@ -22,7 +22,7 @@ from flash.core.optimizers import LinearWarmupCosineAnnealingLR
 from torchvision.ops import sigmoid_focal_loss
 
 from gloria.models.vision_model import GloriaImageClassifier
-from gloria.utils.losses import CombinedBinaryLoss, GloriaLoss
+from gloria.utils.losses import CombinedBinaryLoss, GloriaLoss, MixedLoss
 
 from . import models
 from . import loss
@@ -209,6 +209,7 @@ def build_loss(config: Dict[str, Any]) -> nn.Module:
     
     loss_functions = {
         "MixedLossV2": lambda: CombinedBinaryLoss(config),
+        "MixedLossV1": lambda: MixedLoss(),
         "DiceLossV2": lambda: smp.losses.DiceLoss(mode=config.criterion.label_mode),
         "GloriaLoss": lambda: GloriaLoss(config),
         "BCE": lambda: _create_bce_loss(config),

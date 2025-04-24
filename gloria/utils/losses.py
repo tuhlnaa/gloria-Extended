@@ -416,12 +416,8 @@ class CombinedBinaryLoss(nn.Module):
         self.dice_weight = dice_weight
         self.focal_weight = focal_weight
         self.bce_weight = bce_weight
-        
-        if config.criterion.alpha:
-            self.focal_alpha = config.criterion.alpha
-        else:
-            self.focal_alpha = focal_alpha
-
+    
+        self.focal_alpha = focal_alpha
         self.focal_gamma = focal_gamma
         
         # For binary segmentation
@@ -456,3 +452,242 @@ class CombinedBinaryLoss(nn.Module):
         return (self.dice_weight * dice_loss + 
                 self.focal_weight * focal_loss + 
                 self.bce_weight * bce_loss)
+
+
+
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from typing import Literal, Union
+
+
+def dice_coef(y_pred: torch.Tensor, y_true: torch.Tensor, smooth: float = 1.0) -> torch.Tensor:
+    """Calculate Dice coefficient.
+    
+    Args:
+        y_pred: Predicted binary masks after sigmoid (B, H*W) or (B, 1, H*W)
+        y_true: Ground truth binary masks (B, H*W) or (B, 1, H*W)
+        smooth: Smoothing factor to avoid division by zero
+        
+    Returns:
+        Dice coefficient value
+    """
+    y_pred = y_pred.view(y_pred.shape[0], -1)
+    y_true = y_true.view(y_true.shape[0], -1)
+    
+    intersection = (y_pred * y_true).sum(dim=1)
+    union = y_pred.sum(dim=1) + y_true.sum(dim=1)
+    
+    return (2.0 * intersection + smooth) / (union + smooth)
+
+
+class DiceLoss(nn.Module):
+    """Dice Loss for binary segmentation tasks.
+    
+    Computes 1 - Dice coefficient as the loss value.
+    """
+    
+    def __init__(
+        self, 
+        smooth: float = 1.0, 
+        p: int = 1, 
+        reduction: Literal["mean", "sum", "none"] = "mean"
+    ):
+        """Initialize Dice Loss.
+        
+        Args:
+            smooth: Smoothing factor to avoid division by zero
+            p: Power for input tensors (p=1 for standard dice, p=2 for squared inputs)
+            reduction: Reduction method for batch loss values
+        """
+        super().__init__()
+        self.smooth = smooth
+        self.p = p
+        self.reduction = reduction
+    
+    def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
+        """Forward pass for Dice Loss calculation.
+        
+        Args:
+            y_pred: Predicted logits (B, 1, H, W) or (B, H, W)
+            y_true: Ground truth masks with values 0 or 1 (B, 1, H, W) or (B, H, W)
+            
+        Returns:
+            Dice loss tensor based on specified reduction method
+        """
+        y_pred = torch.sigmoid(y_pred)
+        
+        # Ensure same dimensions
+        if y_pred.dim() == 4 and y_pred.shape[1] == 1:
+            y_pred = y_pred.squeeze(1)
+        if y_true.dim() == 4 and y_true.shape[1] == 1:
+            y_true = y_true.squeeze(1)
+            
+        # Flatten predictions and targets
+        y_pred = y_pred.contiguous().view(y_pred.shape[0], -1)
+        y_true = y_true.contiguous().view(y_true.shape[0], -1)
+        
+        # Apply power if needed (p=1 is standard dice, no change)
+        if self.p > 1:
+            y_pred = y_pred.pow(self.p)
+            y_true = y_true.pow(self.p)
+        
+        intersection = (y_pred * y_true).sum(dim=1)
+        union = y_pred.sum(dim=1) + y_true.sum(dim=1)
+        
+        dice_score = (2.0 * intersection + self.smooth) / (union + self.smooth)
+        loss = 1.0 - dice_score
+        
+        if self.reduction == "mean":
+            return loss.mean()
+        elif self.reduction == "sum":
+            return loss.sum()
+        elif self.reduction == "none":
+            return loss
+        else:
+            raise ValueError(f"Unexpected reduction method: {self.reduction}")
+
+
+class FocalLoss(nn.Module):
+    """Focal Loss for binary segmentation tasks.
+    
+    Adds a modulating factor to cross-entropy loss to focus more
+    on hard examples and less on well-classified examples.
+    """
+    
+    def __init__(self, gamma: float = 2.0):
+        """Initialize Focal Loss.
+        
+        Args:
+            gamma: Focusing parameter. Higher values give more weight to hard examples.
+        """
+        super().__init__()
+        self.gamma = gamma
+    
+    def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
+        """Forward pass for Focal Loss calculation.
+        
+        Args:
+            y_pred: Predicted logits (B, 1, H, W) or (B, H, W)
+            y_true: Ground truth masks with values 0 or 1 (B, 1, H, W) or (B, H, W)
+            
+        Returns:
+            Focal loss value (mean across batch)
+        """
+        # Ensure shapes match
+        if y_pred.shape != y_true.shape:
+            if y_pred.dim() == 4 and y_pred.shape[1] == 1 and y_true.dim() == 3:
+                y_pred = y_pred.squeeze(1)
+            elif y_true.dim() == 4 and y_true.shape[1] == 1 and y_pred.dim() == 3:
+                y_true = y_true.squeeze(1)
+            else:
+                raise ValueError(
+                    f"Target size {y_true.shape} must be compatible with input size {y_pred.shape}"
+                )
+        
+        # Numerically stable implementation of focal loss with BCE
+        max_val = (-y_pred).clamp(min=0)
+        
+        # Binary cross-entropy calculation
+        bce_loss = y_pred - y_pred * y_true + max_val + ((-max_val).exp() + (-y_pred - max_val).exp()).log()
+        
+        # Apply focal weighting
+        pt = torch.exp(-bce_loss)
+        focal_weight = (1 - pt).pow(self.gamma)
+        
+        return (focal_weight * bce_loss).mean()
+
+
+class MixedLoss(nn.Module):
+    """Combined loss using both Focal Loss and Dice Loss for binary segmentation.
+    
+    Helps balance pixel-wise accuracy and structural similarity.
+    """
+    
+    def __init__(self, alpha: float = 10.0, gamma: float = 2.0, dice_smooth: float = 1.0):
+        """Initialize Mixed Loss.
+        
+        Args:
+            alpha: Weight for the Focal Loss component
+            gamma: Focusing parameter for Focal Loss
+            dice_smooth: Smoothing factor for Dice coefficient
+        """
+        super().__init__()
+        self.alpha = alpha
+        self.focal = FocalLoss(gamma)
+        self.dice_smooth = dice_smooth
+    
+    def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
+        """Forward pass for Mixed Loss calculation.
+        
+        Args:
+            y_pred: Predicted logits (B, 1, H, W) or (B, H, W)
+            y_true: Ground truth masks with values 0 or 1 (B, 1, H, W) or (B, H, W)
+            
+        Returns:
+            Combined loss value
+        """
+        # Calculate individual loss components
+        focal_loss = self.focal(y_pred, y_true)
+        dice_score = dice_coef(torch.sigmoid(y_pred), y_true, self.dice_smooth)
+        
+        # Combine losses (alpha * focal_loss - log(dice_score))
+        return self.alpha * focal_loss - torch.log(dice_score.mean())
+    
+
+def test_combined_binary_loss():
+    """
+    Test function for CombinedBinaryLoss with fixed input values
+    """
+    # Create test tensors with fixed values
+    # Batch size = 2, 1 channel, 4x4 images
+    
+    # Create predictions (logits, before sigmoid)
+    y_pred = torch.tensor([
+        # First image in batch - checkerboard pattern of low and high values
+        [[[0.2, 0.9, 0.2, 0.9],
+          [0.9, 0.2, 0.9, 0.2],
+          [0.2, 0.9, 0.2, 0.9],
+          [0.9, 0.2, 0.9, 0.2]]],
+        
+        # Second image in batch - diagonal pattern with medium values
+        [[[0.5, 0.6, 0.5, 0.6],
+          [0.6, 0.5, 0.6, 0.5],
+          [0.5, 0.6, 0.5, 0.6],
+          [0.6, 0.5, 0.6, 0.5]]]
+    ], dtype=torch.float32)
+    
+    # Create ground truth binary masks
+    y_true = torch.tensor([
+        # First image ground truth - checkerboard pattern
+        [[[0, 1, 0, 1],
+          [1, 0, 1, 0],
+          [0, 1, 0, 1],
+          [1, 0, 1, 0]]],
+        
+        # Second image ground truth - diagonal pattern
+        [[[1, 0, 0, 0],
+          [0, 1, 0, 0],
+          [0, 0, 1, 0],
+          [0, 0, 0, 1]]]
+    ], dtype=torch.float64)
+    
+    # Test Case 1: Default weights (0.5 Dice, 0.5 Focal, 0.0 BCE)
+    loss_fn1 = MixedLoss()
+    loss1 = loss_fn1(y_pred, y_true)
+    print(f"Test Case 1 - Default weights (0.5 Dice, 0.5 Focal):")
+    print(f"Combined loss: {loss1.item()}")
+
+    loss_fn1 = FocalLoss()
+    loss1 = loss_fn1(y_pred, y_true)
+    print(f"Test Case 1 - Default weights (0.5 Dice, 0.5 Focal):")
+    print(f"Combined loss: {loss1.item()}")
+
+    loss_fn1 = DiceLoss()
+    loss1 = loss_fn1(y_pred, y_true)
+    print(f"Test Case 1 - Default weights (0.5 Dice, 0.5 Focal):")
+    print(f"Combined loss: {loss1.item()}")
+
+if __name__ == "__main__":
+    test_combined_binary_loss()

@@ -50,7 +50,7 @@ optimizer:
 
 # Regularization parameters
 criterion: 
-  name: "MixedLossV2"   # 🛠️
+  name: "MixedLossV1"   # 🛠️ MixedLossV2 MixedLossV1
   alpha: 10.0           # 🛠️
   label_mode: 'binary'  # 'binary', 'multiclass', 'multilabel'
 

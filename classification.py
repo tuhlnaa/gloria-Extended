@@ -2,7 +2,7 @@
 Optimized GLORIA model inference script with batch processing support.
 """
 import os
-import gloria
+#import gloria
 from typing import List, Dict, Tuple, Optional
 import logging
 
@@ -10,7 +10,7 @@ import torch
 import pandas as pd
 from tqdm import tqdm
 
-from gloria import builder, constants, zero_shot_classification
+from gloria.gloria import builder, constants, generate_chexpert_class_prompts, zero_shot_classification
 from configs.config import parse_args
 
 
@@ -151,8 +151,8 @@ def main():
     
     # Paths configuration
     CHEXPERT_5x200 = r"D:\Kai\pretrained\Gloria\chexpert_5x200.csv"
-    CHECKPOINT_PATH = r"D:\Kai\pretrained\Gloria\chexpert_resnet50.ckpt"
-    
+    #CHECKPOINT_PATH = r"D:\Kai\pretrained\Gloria\chexpert_resnet50.ckpt"
+    CHECKPOINT_PATH = r"D:\Kai\結果\output\experiment01-gloria\checkpoint_best.pth"
     # Load model
     gloria_model = load_gloria_model(config, CHECKPOINT_PATH)
     
@@ -165,7 +165,7 @@ def main():
     )
     
     # Generate class prompts
-    class_prompts = gloria.generate_chexpert_class_prompts()
+    class_prompts = generate_chexpert_class_prompts()
     
     # Run inference in batches
     similarities = run_inference_in_batches(
@@ -173,7 +173,7 @@ def main():
         full_paths,
         class_prompts,
         config.device.device,
-        batch_size=1  # Process in smaller batches to save memory
+        batch_size=64  # Process in smaller batches to save memory
     )
     
     # Calculate accuracy
@@ -193,6 +193,8 @@ if __name__ == "__main__":
     results = main()
 
 """
+python classification.py --config configs\default_gloria_config.yaml
+
 similarities:
    Atelectasis  Cardiomegaly  Consolidation     Edema  Pleural Effusion
 0      0.14921      0.213611       0.165815  0.153986          0.142162

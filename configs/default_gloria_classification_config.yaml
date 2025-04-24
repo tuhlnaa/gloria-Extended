@@ -5,7 +5,6 @@
 output_dir: "./output/transfer-classification00-test"  # Path to save model and results
 data_dir: "D:/Kai/DATA_Set_2/X-ray/CheXpert-v1.0-small"    # Path to the dataset directory
 
-
 train_csv: "train.csv"  # Path to the specific split CSV file
 valid_csv: "valid.csv"
 test_csv: "valid.csv"   # Using validation set as test set (test set labels hidden)

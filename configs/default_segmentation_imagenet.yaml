@@ -2,9 +2,8 @@
 # All paths will be converted to Path objects automatically
 
 # Required parameters (must be provided via command line or config file)
-output_dir: "./output/segmentation01"  # 🛠️ # Path to save model and results
+output_dir: "./output/segmentation01"                        # 🛠️ # Path to save model and results
 data_dir: "D:/Kai/DATA_Set_2/X-ray/SIIM-ACR-Pneumothorax"    # Path to the dataset directory
-# csv_path: null    # Path to the CSV file containing class ID to name mapping
 
 train_csv: "stage_1_train_images.csv"  # Path to the specific split CSV file
 valid_csv: "stage_1_test_images.csv"
@@ -51,7 +50,7 @@ optimizer:
 
 # Regularization parameters
 criterion: 
-  name: "MixedLossV2"  # 🛠️ MixedLossV2 DiceLossV2
+  name: "MixedLossV1"  # 🛠️ MixedLossV2 MixedLossV1
   alpha: 10.0          # 🛠️
   label_mode: 'binary' # 'binary', 'multiclass', 'multilabel'
 

@@ -12,8 +12,6 @@ from data.factory import dataset_factory
 from configs.config import parse_args
 from gloria import builder
 from gloria.engine.gloria_validator import GloriaValidator
-from gloria.models import pytorch
-from utils.checkpoint import CheckpointHandler
 
 
 def set_seed(seed: int = 42) -> None:
@@ -54,9 +52,6 @@ def load_model_checkpoint(model, checkpoint_path):
     model_state_dict = builder.normalize_model_state_dict(checkpoint)
     model.load_state_dict(model_state_dict)
 
-    # start_epochs = checkpoint.get("epochs")
-    # best_val_metrics = checkpoint.get("best_metrics")
-    # val_loss = best_val_metrics["val_loss"]
     print(f"[bold blue]Loaded checkpoint from '{checkpoint_path}'.[/bold blue]")
 
     return model

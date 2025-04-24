@@ -2,9 +2,8 @@
 # All paths will be converted to Path objects automatically
 
 # Required parameters (must be provided via command line or config file)
-output_dir: "./output/experiment00-test"                      # Path to save model and results
+output_dir: "./output/experiment00-test"                 # Path to save model and results
 data_dir: "D:/Kai/DATA_Set_2/X-ray/CheXpert-v1.0-small"  # Path to the dataset directory
-
 
 train_csv: "train.csv"  # Path to the specific split CSV file
 valid_csv: "valid.csv"
@@ -48,6 +47,7 @@ model:
     use: false
     hidden_dim: 512    # 🛠️
     dropout_rate: 0.5  # 🛠️
+
 
 # Optimizer parameters
 optimizer:

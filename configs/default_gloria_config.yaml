@@ -62,9 +62,9 @@ model:
   gloria: 
       local_loss_weight: 1.0
       global_loss_weight: 1.0
-      temp_attention: 4.0    # 🛠️ default: 4.0
-      temp_similarity: 5.0   # 🛠️ default: 5.0
-      temp_loss: 10.0        # 🛠️ default: 10.0
+      temp_attention: 4.0
+      temp_similarity: 5.0
+      temp_loss: 10.0
 
 # Optimizer parameters
 optimizer:
