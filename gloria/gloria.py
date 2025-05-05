@@ -18,7 +18,8 @@ import segmentation_models_pytorch as smp
 from itertools import product
 from typing import Dict, Literal, Union, List
 
-from . import builder
+from gloria import builder
+#from . import builder
 from . import utils
 from . import constants
 from .models.vision_model import GloriaImageClassifier

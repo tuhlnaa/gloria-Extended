@@ -14,10 +14,14 @@ sys.path.append(str(PROJECT_ROOT))
 
 from utils.logging_utils import LoggingManager
 
-def parse_args() -> OmegaConf:
-    """Parse command line arguments and merge with config file."""
-    parser = argparse.ArgumentParser(description='Train RSNA Trauma Detection model')
+def parse_args(args=None) -> OmegaConf:
+    """Parse command line arguments and merge with config file.
     
+    Args:
+        args: List of arguments to parse. If None, uses sys.argv.
+    """
+    parser = argparse.ArgumentParser(description='Train RSNA Trauma Detection model')
+   
     # Only keep frequently modified arguments in argparse
     parser.add_argument('--config', type=str, help='YAML config file path')
     parser.add_argument('--output_dir', type=str, help='Path to save model and results')
@@ -29,11 +33,11 @@ def parse_args() -> OmegaConf:
     parser.add_argument('--device', type=str, help="Device (accelerator) to use")
     parser.add_argument('--experiment_name', type=str, help='Name for the experiment')
     parser.add_argument('--seed', type=int, help='Random seed')
-    
-    args = parser.parse_args()
-    
+   
+    parsed_args = parser.parse_args(args)
+   
     # Create the configuration object
-    config = create_config(args)
+    config = create_config(parsed_args)
 
     # Print configuration using the logging utility
     LoggingManager.print_config(config, "Configuration")
