@@ -99,4 +99,6 @@ python test\convert_to_onnx.py --checkpoint path/to/checkpoint.pt --config confi
 
 python test\convert_to_onnx.py --checkpoint "D:\Kai\training-results\output\experiment01\checkpoint_best.pth" --config configs\default_config.yaml  --output model.onnx
 
+
+pnnx "E:\Kai_2\CODE_Repository\ChestDx-Intelligence-Models\model.onnx" "inputshape=[1,3,224,224]f32"
 """

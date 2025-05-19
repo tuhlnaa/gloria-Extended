@@ -127,12 +127,13 @@ def compare_with_pytorch_model(onnx_results, pytorch_checkpoint, config_path):
     from gloria.engine.factory import validator_factory
     
     # Setup loss function
-    if config.model.n_classes > 1 and config.model.multi_label:
-        criterion = torch.nn.BCEWithLogitsLoss()
-    elif config.model.n_classes > 1 and not config.model.multi_label:
-        criterion = torch.nn.CrossEntropyLoss()
-    else:
-        criterion = torch.nn.BCEWithLogitsLoss()
+    criterion = torch.nn.BCEWithLogitsLoss()
+    # if config.model.n_classes > 1 and config.model.multi_label:
+    #     criterion = torch.nn.BCEWithLogitsLoss()
+    # elif config.model.n_classes > 1 and not config.model.multi_label:
+    #     criterion = torch.nn.CrossEntropyLoss()
+    # else:
+    #     criterion = torch.nn.BCEWithLogitsLoss()
     
     # Initialize validator
     validator = validator_factory.get_validator(config, model, criterion)
@@ -146,14 +147,14 @@ def compare_with_pytorch_model(onnx_results, pytorch_checkpoint, config_path):
     
     # Print comparison
     print("\nModel Comparison (ONNX vs PyTorch):")
-    print("{:<20} {:<15} {:<15} {:<15}".format("Metric", "ONNX", "PyTorch", "Difference"))
+    print("{:<20} {:<15} {:<15} {:<15}".format("Metric", "ONNX", "PyTorch"))
     print("-" * 65)
     
     for metric in onnx_results:
         if metric in pytorch_results:
             diff = onnx_results[metric] - pytorch_results[metric]
-            print("{:<20} {:<15.4f} {:<15.4f} {:<15.4f}".format(
-                metric, onnx_results[metric], pytorch_results[metric], diff
+            print("{:<20} {:<15.4f} {:<15.4f}".format(
+                metric, onnx_results[metric], pytorch_results[metric]
             ))
     
     return pytorch_results
@@ -194,4 +195,7 @@ python test/evaluate_onnx.py --onnx_model model.onnx --config configs/default_co
 
 
 python test/evaluate_onnx.py --onnx_model "E:\Kai_2\CODE_Repository\ChestDx-Intelligence-Models\model.onnx" --config configs/default_config.yaml
+
+python test/evaluate_onnx.py --onnx_model "E:\Kai_2\CODE_Repository\ChestDx-Intelligence-Models\model.onnx" --config configs/default_config.yaml --checkpoint "D:\Kai\training-results\output\experiment01\checkpoint_best.pth" --compare
+
 """
