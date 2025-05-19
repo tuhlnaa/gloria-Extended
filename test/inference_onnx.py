@@ -1,8 +1,8 @@
 """
-ONNX Single Image Inference Script
+ONNX Medical Image Inference Script
 
-This script performs inference on a single medical image using an ONNX model.
-It uses the MedicalImageProcessor for preprocessing without PyTorch dependencies.
+This script performs inference on medical images using an ONNX model.
+It can process a single image or recursively process all images in a directory.
 """
 import sys
 import argparse
@@ -11,17 +11,16 @@ import onnxruntime as ort
 from pathlib import Path
 import cv2
 import time
+import os
 from enum import Enum
 from typing import Dict, List, Optional, Tuple, Union
 from dataclasses import dataclass, field
-
 
 class ImageFormat(Enum):
     """Supported image formats for medical image processing."""
     JPG = "jpg"
     PNG = "png"
     DICOM = "dicom"
-
 
 @dataclass
 class ImageProcessorConfig:
@@ -43,7 +42,6 @@ class ImageProcessorConfig:
             "std": [0.5, 0.5, 0.5]
         }
     })
-
 
 class MedicalImageProcessor:
     """
@@ -216,7 +214,6 @@ class MedicalImageProcessor:
 
         return normalized_img
 
-
 def save_visualization(input_image, output_path, probabilities, class_names=None):
     """
     Save a visualization of the original image with predictions.
@@ -251,12 +248,15 @@ def save_visualization(input_image, output_path, probabilities, class_names=None
         cv2.putText(vis, text, (10, y_pos), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
     
     # Save the visualization
+    output_dir = os.path.dirname(output_path)
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir)
     cv2.imwrite(str(output_path), vis)
     print(f"Visualization saved to {output_path}")
 
-
 def run_onnx_inference(image_path, onnx_model_path, output_path=None, 
-                       class_names=None, image_size=224, normalization="imagenet"):
+                       class_names=None, image_size=224, normalization="imagenet",
+                       use_random_inference=False, random_seed=None):
     """
     Run inference on a single image using an ONNX model.
     
@@ -267,10 +267,16 @@ def run_onnx_inference(image_path, onnx_model_path, output_path=None,
         class_names: List of class names (optional)
         image_size: Size for image preprocessing
         normalization: Normalization method ("none", "half", "imagenet")
+        use_random_inference: Whether to use random numbers for inference (testing mode)
+        random_seed: Seed for random number generation (optional)
         
     Returns:
         Probability predictions for the image
     """
+    # Set random seed if provided
+    if random_seed is not None:
+        np.random.seed(random_seed)
+    
     # Configure image processor
     config = ImageProcessorConfig(image_size=image_size, normalization=normalization)
     processor = MedicalImageProcessor(config)
@@ -281,18 +287,47 @@ def run_onnx_inference(image_path, onnx_model_path, output_path=None,
     img_input = processor.read_image(image_path)
     
     # Create ONNX Runtime session
-    print(f"Loading ONNX model from {onnx_model_path}...")
-    providers = ['CPUExecutionProvider']
-    if ort.get_device() == 'GPU':
-        providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
+    session = None
+    if not hasattr(run_onnx_inference, "session") or run_onnx_inference.session is None:
+        print(f"Loading ONNX model from {onnx_model_path}...")
+        providers = ['CPUExecutionProvider']
+        if ort.get_device() == 'GPU':
+            providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
+        
+        session = ort.InferenceSession(onnx_model_path, providers=providers)
+        run_onnx_inference.session = session
+    else:
+        session = run_onnx_inference.session
     
-    session = ort.InferenceSession(onnx_model_path, providers=providers)
     input_name = session.get_inputs()[0].name
     
-    # Run inference
-    print("Running inference...")
-    outputs = session.run(None, {input_name: img_input})
-    logits = outputs[0]
+    if use_random_inference:
+        print("TESTING MODE: Using random numbers for inference")
+        # Get output shape from the model
+        output_shape = session.get_outputs()[0].shape
+        print(f"Model output shape: {output_shape}")
+        
+        # Handle dynamic or symbolic dimensions in output_shape
+        numeric_shape = []
+        for dim in output_shape:
+            if dim is None or isinstance(dim, str):
+                # For batch dimension, use 1
+                if dim == 'batch_size' or len(numeric_shape) == 0:
+                    numeric_shape.append(1)
+                # For class dimension, use length of class_names or default
+                else:
+                    numeric_shape.append(len(class_names) if class_names else 5)
+            else:
+                # Keep numeric dimensions as they are
+                numeric_shape.append(int(dim))
+        
+        print(f"Using shape for random inference: {numeric_shape}")
+        logits = np.random.randn(*numeric_shape).astype(np.float32)
+    else:
+        # Run inference
+        print("Running inference...")
+        outputs = session.run(None, {input_name: img_input})
+        logits = outputs[0]
     
     # Convert logits to probabilities
     probabilities = 1 / (1 + np.exp(-logits))  # sigmoid
@@ -304,7 +339,7 @@ def run_onnx_inference(image_path, onnx_model_path, output_path=None,
     print("\nPrediction Results:")
     for i, prob in enumerate(probabilities[0]):
         class_label = class_names[i] if class_names and i < len(class_names) else f"Class {i}"
-        print(f"{class_label}: {prob:.4f}")
+        print(f"{class_label}: {(prob)*100:.1f} %")
     
     # Save visualization if requested
     if output_path:
@@ -312,15 +347,58 @@ def run_onnx_inference(image_path, onnx_model_path, output_path=None,
     
     return probabilities
 
+def find_images_in_directory(directory_path):
+    """
+    Recursively find all supported image files in a directory and its subdirectories.
+    
+    Args:
+        directory_path: Path to the directory to search
+        
+    Returns:
+        List of image file paths
+    """
+    directory_path = Path(directory_path)
+    supported_extensions = [f".{fmt.value}" for fmt in ImageFormat]
+    
+    image_files = []
+    for ext in supported_extensions:
+        # Use recursive glob to find files with the extension
+        image_files.extend(list(directory_path.glob(f"**/*{ext}")))
+        # Also check for uppercase extensions
+        image_files.extend(list(directory_path.glob(f"**/*{ext.upper()}")))
+    
+    # Additional check for DICOM files without extension
+    try:
+        import pydicom
+        # Find files without extension that might be DICOM
+        for file_path in directory_path.glob("**/*"):
+            if file_path.is_file() and file_path.suffix == "":
+                try:
+                    # Try to read as DICOM
+                    pydicom.dcmread(str(file_path))
+                    image_files.append(file_path)
+                except:
+                    # Not a DICOM file, skip
+                    pass
+    except ImportError:
+        print("pydicom not installed, skipping DICOM file detection for files without extension")
+    
+    return sorted(image_files)
 
 def main():
-    parser = argparse.ArgumentParser(description="ONNX Single Image Inference")
-    parser.add_argument('--image', type=str, required=True, 
-                        help='Path to the input image')
+    parser = argparse.ArgumentParser(description="ONNX Medical Image Inference")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--image', type=str, 
+                       help='Path to a single input image')
+    group.add_argument('--folder', type=str, 
+                       help='Path to a folder of images (will process all images recursively)')
+    
     parser.add_argument('--onnx_model', type=str, required=True, 
                         help='Path to the ONNX model')
+    parser.add_argument('--output_dir', type=str, default=None,
+                        help='Directory to save output visualizations (required if --folder is used)')
     parser.add_argument('--output', type=str, default=None,
-                        help='Path to save the output visualization')
+                        help='Path to save the output visualization (for single image)')
     parser.add_argument('--image_size', type=int, default=224,
                         help='Size for image preprocessing (default: 224)')
     parser.add_argument('--normalization', type=str, default="imagenet",
@@ -328,6 +406,10 @@ def main():
                         help='Normalization method (default: imagenet)')
     parser.add_argument('--classes', type=str, default=None,
                         help='Path to a text file with class names (one per line)')
+    parser.add_argument('--random_inference', action='store_true',
+                        help='Use random numbers for inference (test mode)')
+    parser.add_argument('--random_seed', type=int, default=None,
+                        help='Seed for random number generation (optional)')
     
     args = parser.parse_args()
     
@@ -340,19 +422,101 @@ def main():
         except Exception as e:
             print(f"Warning: Could not load class names: {e}")
     
-    # Run inference
-    probabilities = run_onnx_inference(
-        args.image, 
-        args.onnx_model,
-        args.output,
-        class_names,
-        args.image_size,
-        args.normalization
-    )
-
+    # Process folder of images
+    if args.folder:
+        # if not args.output_dir:
+        #     parser.error("--output_dir is required when using --folder")
+        
+        # Create output directory if it doesn't exist
+        output_dir = Path(args.output_dir)
+        if not output_dir.exists():
+            output_dir.mkdir(parents=True)
+        
+        # Find all images in the directory
+        image_files = find_images_in_directory(args.folder)
+        if not image_files:
+            print(f"No supported image files found in {args.folder}")
+            return
+        
+        print(f"Found {len(image_files)} images to process")
+        
+        # Initialize the run_onnx_inference.session to None to load model only once
+        run_onnx_inference.session = None
+        
+        # Process each image
+        for i, image_path in enumerate(image_files):
+            print(f"\nProcessing image {i+1}/{len(image_files)}: {image_path}")
+            
+            # Create output filename with same relative path structure
+            rel_path = image_path.relative_to(Path(args.folder))
+            output_path = output_dir / f"{rel_path.stem}_result{rel_path.suffix}"
+            
+            # Ensure output directory exists
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            try:
+                # Run inference
+                run_onnx_inference(
+                    image_path, 
+                    args.onnx_model,
+                    output_path,
+                    class_names,
+                    args.image_size,
+                    args.normalization,
+                    args.random_inference,
+                    args.random_seed
+                )
+            except Exception as e:
+                print(f"Error processing {image_path}: {e}")
+                continue
+        
+        print(f"\nProcessed {len(image_files)} images. Results saved to {args.output_dir}")
+    
+    # Process single image
+    else:
+        output_path = args.output
+        run_onnx_inference(
+            args.image, 
+            args.onnx_model,
+            output_path,
+            class_names,
+            args.image_size,
+            args.normalization,
+            args.random_inference,
+            args.random_seed
+        )
 
 if __name__ == "__main__":
     main()
+
+"""
+Example usage:
+# Single image inference
+python infer_medical_images.py --image path/to/image.jpg --onnx_model path/to/model.onnx --output visualization.jpg
+
+# Folder inference (recursive)
+python infer_medical_images.py --folder path/to/image_folder --onnx_model path/to/model.onnx --output_dir path/to/results
+
+# With custom class names
+python infer_medical_images.py --folder path/to/image_folder --onnx_model path/to/model.onnx --output_dir path/to/results --classes class_names.txt
+
+# With custom processing parameters
+python infer_medical_images.py --folder path/to/image_folder --onnx_model path/to/model.onnx --output_dir path/to/results --image_size 256 --normalization half
+
+# With random inference for testing
+python infer_medical_images.py --folder path/to/image_folder --onnx_model path/to/model.onnx --output_dir path/to/results --random_inference
+
+
+python test\inference_onnx.py --normalization "half" --image E:/Kai_2/CODE_Repository/CppTest/input.jpg --onnx_model "E:\Kai_2\CODE_Repository\ChestDx-Intelligence-Models\model.onnx" --random_inference --random_seed 42
+
+python test\inference_onnx.py --normalization "half" --image "D:\Kai\DATA_Set_2\X-ray\CheXpert-v1.0\valid\patient64545\study1\view1_frontal.jpg" --onnx_model "E:\Kai_2\CODE_Repository\ChestDx-Intelligence-Models\model.onnx"
+
+
+
+python test\inference_onnx.py --folder D:\Kai\DATA_Set_2\X-ray\CheXpert-v1.0\valid --onnx_model "E:\Kai_2\CODE_Repository\ChestDx-Intelligence-Models\model.onnx" --output_dir output
+
+"""
+
 
 """
 Example usage:
@@ -364,8 +528,9 @@ python infer_single_image.py --image path/to/image.jpg --onnx_model path/to/mode
 # With custom processing parameters
 python infer_single_image.py --image path/to/image.jpg --onnx_model path/to/model.onnx --image_size 256 --normalization half
 
+# With random inference for testing
+python infer_single_image.py --image path/to/image.jpg --onnx_model path/to/model.onnx --random_inference
 
-python test\inference_onnx.py --image E:/Kai_2/CODE_Repository/CppTest/input.jpg --onnx_model "E:\Kai_2\CODE_Repository\ChestDx-Intelligence-Models\model.onnx"
-
-
+# With random inference and fixed seed for reproducible testing
+python infer_single_image.py --image path/to/image.jpg --onnx_model path/to/model.onnx --random_inference --random_seed 42
 """

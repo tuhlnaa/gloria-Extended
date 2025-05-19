@@ -65,10 +65,13 @@ def evaluate_onnx_model(onnx_path, config_path, batch_size=None):
     # else:
     #     criterion = torch.nn.BCEWithLogitsLoss()
     
+    # Replace with actual class names
+    class_names = ["class1", "class2", "class3", "class4", "class5"]  
+
     # Evaluate model
     print("Evaluating ONNX model...")
     with torch.no_grad():
-        for batch in tqdm(val_loader, desc="Validate"):
+        for batch_idx, batch in enumerate(tqdm(val_loader, desc="Validate")):
             images, labels = batch
             
             # Convert to numpy for ONNX Runtime
@@ -82,6 +85,48 @@ def evaluate_onnx_model(onnx_path, config_path, batch_size=None):
             labels = labels.to(device)
             logits = logits.to(device)
             
+            # ==========================================================
+            probabilities = torch.sigmoid(logits)
+            
+            # Print results for this batch
+            print(f"\nBatch {batch_idx+1} results:")
+            
+            # For multi-label classification, we typically use a threshold (e.g., 0.5)
+            predictions = (probabilities > 0.5).int()
+            
+            # Print results for each image in the batch (or just a few to avoid overwhelming output)
+            images_to_show = min(100, len(images))  # Show at most 5 images per batch
+            
+            for i in range(images_to_show):
+                print(f"  Image {i+1}:")
+                
+                if class_names:
+                    # Print with class names
+                    for j, prob in enumerate(probabilities[i]):
+                        pred = "✓" if predictions[i][j] else "✗"
+                        print(f"    {class_names[j]}: {prob.item():.4f} {pred}")
+                else:
+                    # Print without class names
+                    for j, prob in enumerate(probabilities[i]):
+                        pred = "✓" if predictions[i][j] else "✗"
+                        print(f"    Class {j}: {prob.item():.4f} {pred}")
+                
+                # Print ground truth
+                true_classes = [j for j, val in enumerate(labels[i]) if val == 1]
+                if class_names:
+                    true_class_names = [class_names[j] for j in true_classes]
+                    print(f"    Ground truth: {true_class_names}")
+                else:
+                    print(f"    Ground truth: {true_classes}")
+                
+            # Optional: calculate and print batch accuracy metrics
+            # With 5 classes, each sample can have between 0 and 5 correct predictions. 
+            # The value of 3.7344 means that on average, each image in this batch had approximately 3.73 out of 5 class predictions correct.
+            correct = (predictions == labels).float().sum(dim=1)
+            accuracy = correct.sum() / len(predictions)
+            print(f"  Batch accuracy: {accuracy.item():.4f}")
+            # ==========================================================
+
             # Compute loss
             loss = criterion(logits, labels)
             
@@ -147,7 +192,7 @@ def compare_with_pytorch_model(onnx_results, pytorch_checkpoint, config_path):
     
     # Print comparison
     print("\nModel Comparison (ONNX vs PyTorch):")
-    print("{:<20} {:<15} {:<15} {:<15}".format("Metric", "ONNX", "PyTorch"))
+    print("{:<20} {:<15} {:<15}".format("Metric", "ONNX", "PyTorch"))
     print("-" * 65)
     
     for metric in onnx_results:
