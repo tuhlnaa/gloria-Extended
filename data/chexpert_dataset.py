@@ -259,11 +259,12 @@ class CheXpertImageDataset(ImageBaseDataset):
         # Get and process image
         img_path = row[self.chexpert_config.PATH_COL]
         img = self._read_from_jpg(img_path)
-        
+        #print(img_path)
+
         # Get labels for competition tasks
         labels = torch.tensor(list(row[self.chexpert_config.COMPETITION_TASKS]))
         
-        return img, labels
+        return img, labels, img_path
 
 
     def __len__(self) -> int:

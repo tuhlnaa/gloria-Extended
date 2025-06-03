@@ -72,7 +72,7 @@ def evaluate_onnx_model(onnx_path, config_path, batch_size=None):
     print("Evaluating ONNX model...")
     with torch.no_grad():
         for batch_idx, batch in enumerate(tqdm(val_loader, desc="Validate")):
-            images, labels = batch
+            images, labels, img_path = batch
             
             # Convert to numpy for ONNX Runtime
             images_np = images.numpy()
@@ -99,7 +99,7 @@ def evaluate_onnx_model(onnx_path, config_path, batch_size=None):
             
             for i in range(images_to_show):
                 print(f"  Image {i+1}:")
-                
+                print(img_path[i])
                 if class_names:
                     # Print with class names
                     for j, prob in enumerate(probabilities[i]):
@@ -118,7 +118,7 @@ def evaluate_onnx_model(onnx_path, config_path, batch_size=None):
                     print(f"    Ground truth: {true_class_names}")
                 else:
                     print(f"    Ground truth: {true_classes}")
-                
+                quit()
             # Optional: calculate and print batch accuracy metrics
             # With 5 classes, each sample can have between 0 and 5 correct predictions. 
             # The value of 3.7344 means that on average, each image in this batch had approximately 3.73 out of 5 class predictions correct.

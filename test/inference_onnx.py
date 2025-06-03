@@ -4,17 +4,17 @@ ONNX Medical Image Inference Script
 This script performs inference on medical images using an ONNX model.
 It can process a single image or recursively process all images in a directory.
 """
-import sys
+import cv2
+import time
 import argparse
 import numpy as np
 import onnxruntime as ort
-from pathlib import Path
-import cv2
-import time
-import os
+
 from enum import Enum
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 from dataclasses import dataclass, field
+
 
 class ImageFormat(Enum):
     """Supported image formats for medical image processing."""
@@ -214,47 +214,8 @@ class MedicalImageProcessor:
 
         return normalized_img
 
-def save_visualization(input_image, output_path, probabilities, class_names=None):
-    """
-    Save a visualization of the original image with predictions.
-    
-    Args:
-        input_image: Path to the original input image
-        output_path: Path to save the visualization
-        probabilities: Model prediction probabilities
-        class_names: List of class names (if available)
-    """
-    # Read the original image
-    img = cv2.imread(str(input_image))
-    if img is None:
-        # Try to read as grayscale and convert to BGR
-        img = cv2.imread(str(input_image), cv2.IMREAD_GRAYSCALE)
-        if img is not None:
-            img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-        else:
-            raise FileNotFoundError(f"Could not read image: {input_image}")
-    
-    # Create a white background for the text
-    h, w = img.shape[:2]
-    text_height = 30 * len(probabilities)
-    vis = np.ones((h + text_height, w, 3), dtype=np.uint8) * 255
-    vis[:h, :w] = img
-    
-    # Add prediction text
-    for i, prob in enumerate(probabilities[0]):
-        y_pos = h + 25 * (i + 1)
-        class_label = class_names[i] if class_names and i < len(class_names) else f"Class {i}"
-        text = f"{class_label}: {prob:.4f}"
-        cv2.putText(vis, text, (10, y_pos), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
-    
-    # Save the visualization
-    output_dir = os.path.dirname(output_path)
-    if output_dir and not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    cv2.imwrite(str(output_path), vis)
-    print(f"Visualization saved to {output_path}")
 
-def run_onnx_inference(image_path, onnx_model_path, output_path=None, 
+def run_onnx_inference(image_path, onnx_model_path, 
                        class_names=None, image_size=224, normalization="imagenet",
                        use_random_inference=False, random_seed=None):
     """
@@ -341,11 +302,8 @@ def run_onnx_inference(image_path, onnx_model_path, output_path=None,
         class_label = class_names[i] if class_names and i < len(class_names) else f"Class {i}"
         print(f"{class_label}: {(prob)*100:.1f} %")
     
-    # Save visualization if requested
-    if output_path:
-        save_visualization(image_path, output_path, probabilities, class_names)
-    
     return probabilities
+
 
 def find_images_in_directory(directory_path):
     """
@@ -385,6 +343,7 @@ def find_images_in_directory(directory_path):
     
     return sorted(image_files)
 
+
 def main():
     parser = argparse.ArgumentParser(description="ONNX Medical Image Inference")
     group = parser.add_mutually_exclusive_group(required=True)
@@ -395,8 +354,6 @@ def main():
     
     parser.add_argument('--onnx_model', type=str, required=True, 
                         help='Path to the ONNX model')
-    parser.add_argument('--output_dir', type=str, default=None,
-                        help='Directory to save output visualizations (required if --folder is used)')
     parser.add_argument('--output', type=str, default=None,
                         help='Path to save the output visualization (for single image)')
     parser.add_argument('--image_size', type=int, default=224,
@@ -424,14 +381,6 @@ def main():
     
     # Process folder of images
     if args.folder:
-        # if not args.output_dir:
-        #     parser.error("--output_dir is required when using --folder")
-        
-        # Create output directory if it doesn't exist
-        output_dir = Path(args.output_dir)
-        if not output_dir.exists():
-            output_dir.mkdir(parents=True)
-        
         # Find all images in the directory
         image_files = find_images_in_directory(args.folder)
         if not image_files:
@@ -446,20 +395,11 @@ def main():
         # Process each image
         for i, image_path in enumerate(image_files):
             print(f"\nProcessing image {i+1}/{len(image_files)}: {image_path}")
-            
-            # Create output filename with same relative path structure
-            rel_path = image_path.relative_to(Path(args.folder))
-            output_path = output_dir / f"{rel_path.stem}_result{rel_path.suffix}"
-            
-            # Ensure output directory exists
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            
             try:
                 # Run inference
                 run_onnx_inference(
                     image_path, 
                     args.onnx_model,
-                    output_path,
                     class_names,
                     args.image_size,
                     args.normalization,
@@ -469,16 +409,12 @@ def main():
             except Exception as e:
                 print(f"Error processing {image_path}: {e}")
                 continue
-        
-        print(f"\nProcessed {len(image_files)} images. Results saved to {args.output_dir}")
     
     # Process single image
     else:
-        output_path = args.output
         run_onnx_inference(
             args.image, 
             args.onnx_model,
-            output_path,
             class_names,
             args.image_size,
             args.normalization,
@@ -486,41 +422,43 @@ def main():
             args.random_seed
         )
 
+
 if __name__ == "__main__":
     main()
 
 """
 Example usage:
 # Single image inference
-python infer_medical_images.py --image path/to/image.jpg --onnx_model path/to/model.onnx --output visualization.jpg
+python infer_medical_images.py --image path/to/image.jpg --onnx_model path/to/model.onnx
 
 # Folder inference (recursive)
-python infer_medical_images.py --folder path/to/image_folder --onnx_model path/to/model.onnx --output_dir path/to/results
+python infer_medical_images.py --folder path/to/image_folder --onnx_model path/to/model.onnx
 
 # With custom class names
-python infer_medical_images.py --folder path/to/image_folder --onnx_model path/to/model.onnx --output_dir path/to/results --classes class_names.txt
+python infer_medical_images.py --folder path/to/image_folder --onnx_model path/to/model.onnx --classes class_names.txt
 
 # With custom processing parameters
-python infer_medical_images.py --folder path/to/image_folder --onnx_model path/to/model.onnx --output_dir path/to/results --image_size 256 --normalization half
+python infer_medical_images.py --folder path/to/image_folder --onnx_model path/to/model.onnx --image_size 256 --normalization half
 
 # With random inference for testing
-python infer_medical_images.py --folder path/to/image_folder --onnx_model path/to/model.onnx --output_dir path/to/results --random_inference
+python infer_medical_images.py --folder path/to/image_folder --onnx_model path/to/model.onnx --random_inference
 
 
 python test\inference_onnx.py --normalization "half" --image E:/Kai_2/CODE_Repository/CppTest/input.jpg --onnx_model "E:\Kai_2\CODE_Repository\ChestDx-Intelligence-Models\model.onnx" --random_inference --random_seed 42
 
 python test\inference_onnx.py --normalization "half" --image "D:\Kai\DATA_Set_2\X-ray\CheXpert-v1.0\valid\patient64545\study1\view1_frontal.jpg" --onnx_model "E:\Kai_2\CODE_Repository\ChestDx-Intelligence-Models\model.onnx"
+python test\inference_onnx.py --normalization "half" --image "D:\Kai\DATA_Set_2\X-ray\CheXpert-v1.0-small\valid\patient64541\study1\view1_frontal.jpg" --onnx_model "E:\Kai_2\CODE_Repository\ChestDx-Intelligence-Models\model.onnx"
 
 
 
-python test\inference_onnx.py --folder D:\Kai\DATA_Set_2\X-ray\CheXpert-v1.0\valid --onnx_model "E:\Kai_2\CODE_Repository\ChestDx-Intelligence-Models\model.onnx" --output_dir output
+python test\inference_onnx.py --folder D:\Kai\DATA_Set_2\X-ray\CheXpert-v1.0\valid --onnx_model "E:\Kai_2\CODE_Repository\ChestDx-Intelligence-Models\model.onnx"
 
 """
 
 
 """
 Example usage:
-python infer_single_image.py --image path/to/image.jpg --onnx_model path/to/model.onnx --output visualization.jpg
+python infer_single_image.py --image path/to/image.jpg --onnx_model path/to/model.onnx
 
 # With custom class names
 python infer_single_image.py --image path/to/image.jpg --onnx_model path/to/model.onnx --classes class_names.txt

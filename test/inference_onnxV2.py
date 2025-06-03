@@ -1,13 +1,23 @@
-import argparse
-import numpy as np
-import onnxruntime as ort
-from pathlib import Path
-import torch
-import cv2
-from PIL import Image
-import os
 
-def preprocess_image(img_path, target_size=224, norm_type="imagenet"):
+import cv2
+import torch
+import argparse
+import random
+import numpy as np
+
+from PIL import Image
+from pathlib import Path
+import onnxruntime as ort
+
+def set_seed(seed: int = 42) -> None:
+    """Set random seed for reproducibility."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    
+def preprocess_image(img_path, target_size=256, norm_type="imagenet"):
     """
     Preprocess an image for inference with the ONNX model.
     
@@ -180,8 +190,8 @@ def main():
     parser.add_argument('--recursive', action='store_true', help='Process subdirectories recursively')
     parser.add_argument('--classes', type=str, default="class1,class2,class3,class4,class5", 
                         help='Comma-separated list of class names')
-    parser.add_argument('--target_size', type=int, default=224, 
-                        help='Target size for image preprocessing (default: 224)')
+    parser.add_argument('--target_size', type=int, default=256, 
+                        help='Target size for image preprocessing (default: 256)')
     parser.add_argument('--norm', type=str, default="imagenet", choices=["imagenet", "half"],
                         help='Type of normalization to apply (default: imagenet)')
     parser.add_argument('--cpu', action='store_true', help='Force CPU execution')
@@ -251,8 +261,12 @@ python onnx_inference.py --model model.onnx --input path/to/image.jpg --target_s
 python onnx_inference.py --model model.onnx --input path/to/image.jpg --norm half
 
 
-python test\inference_onnxV2.py --model "E:\Kai_2\CODE_Repository\ChestDx-Intelligence-Models\model.onnx" --input "E:\Kai_2\view1_frontal.jpg"
+python test\inference_onnxV2.py --model "E:\Kai_2\CODE_Repository\ChestDx-Intelligence-Models\model.onnx" --norm "half" --input "E:\Kai_2\view1_frontal.jpg"
 
 python test\inference_onnxV2.py --model "E:\Kai_2\CODE_Repository\ChestDx-Intelligence-Models\model.onnx" --norm "half" --input "D:\Kai\DATA_Set_2\X-ray\CheXpert-v1.0\valid" --recursive
+
+python test\inference_onnxV2.py --model "E:\Kai_2\CODE_Repository\ChestDx-Intelligence-Models\model.onnx" --norm "half" --input "D:\Kai\DATA_Set_2\X-ray\CheXpert-v1.0-small\valid\patient64603\study1\view1_frontal.jpg"
+
+python test\inference_onnxV2.py --model "E:\Kai_2\CODE_Repository\ChestDx-Intelligence-Models\model.onnx" --norm "half" --input "D:\Kai\DATA_Set_2\X-ray\CheXpert-v1.0-small\valid\patient64541\study1\view1_frontal.jpg"
 
 """
