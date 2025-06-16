@@ -1,4 +1,3 @@
-
 import cv2
 import torch
 import argparse
@@ -8,22 +7,15 @@ import numpy as np
 from PIL import Image
 from pathlib import Path
 import onnxruntime as ort
-
-def set_seed(seed: int = 42) -> None:
-    """Set random seed for reproducibility."""
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
     
-def preprocess_image(img_path, target_size=256, norm_type="imagenet"):
+def preprocess_image(img_path, target_size=256, crop_size=224, norm_type="imagenet"):
     """
     Preprocess an image for inference with the ONNX model.
     
     Args:
         img_path (str or Path): Path to the image
         target_size (int): Target size for the image
+        crop_size (int): Size for center crop
         norm_type (str): Type of normalization to apply ("imagenet" or "half")
         
     Returns:
@@ -68,8 +60,21 @@ def preprocess_image(img_path, target_size=256, norm_type="imagenet"):
         mode="constant", constant_values=0
     )
     
+    # Apply center crop
+    if crop_size < target_size:
+        # Calculate crop coordinates
+        crop_top = (target_size - crop_size) // 2
+        crop_bottom = crop_top + crop_size
+        crop_left = (target_size - crop_size) // 2
+        crop_right = crop_left + crop_size
+        
+        # Perform center crop
+        cropped_img = padded_img[crop_top:crop_bottom, crop_left:crop_right]
+    else:
+        cropped_img = padded_img
+    
     # Convert to PIL Image and to RGB
-    pil_img = Image.fromarray(padded_img).convert("RGB")
+    pil_img = Image.fromarray(cropped_img).convert("RGB")
     
     # Convert to tensor and normalize
     img_tensor = torch.from_numpy(np.array(pil_img)).float().permute(2, 0, 1) / 255.0
@@ -119,7 +124,7 @@ def run_inference(session, image, input_name):
     }
 
 
-def process_images(img_paths, session, input_name, class_names, target_size, norm_type):
+def process_images(img_paths, session, input_name, class_names, target_size, crop_size, norm_type):
     """
     Process images and print results.
     
@@ -129,6 +134,7 @@ def process_images(img_paths, session, input_name, class_names, target_size, nor
         input_name (str): Input name for the ONNX model
         class_names (list): List of class names
         target_size (int): Target size for image preprocessing
+        crop_size (int): Size for center crop
         norm_type (str): Type of normalization to apply
         
     Returns:
@@ -137,7 +143,7 @@ def process_images(img_paths, session, input_name, class_names, target_size, nor
     for i, img_path in enumerate(img_paths, 1):
         try:
             # Preprocess image
-            preprocessed_img = preprocess_image(img_path, target_size, norm_type)
+            preprocessed_img = preprocess_image(img_path, target_size, crop_size, norm_type)
             
             # Run inference
             results = run_inference(session, preprocessed_img, input_name)
@@ -188,11 +194,13 @@ def main():
     parser.add_argument('--model', type=str, required=True, help='Path to the ONNX model')
     parser.add_argument('--input', type=str, required=True, help='Path to input image or directory')
     parser.add_argument('--recursive', action='store_true', help='Process subdirectories recursively')
-    parser.add_argument('--classes', type=str, default="class1,class2,class3,class4,class5", 
+    parser.add_argument('--classes', type=str, default="Atelectasis,Cardiomegaly,Consolidation,Edema,Pleural Effusion", 
                         help='Comma-separated list of class names')
     parser.add_argument('--target_size', type=int, default=256, 
                         help='Target size for image preprocessing (default: 256)')
-    parser.add_argument('--norm', type=str, default="imagenet", choices=["imagenet", "half"],
+    parser.add_argument('--crop_size', type=int, default=224,
+                        help='Size for center crop (default: 224)')
+    parser.add_argument('--norm', type=str, default="half", choices=["imagenet", "half"],
                         help='Type of normalization to apply (default: imagenet)')
     parser.add_argument('--cpu', action='store_true', help='Force CPU execution')
     
@@ -234,7 +242,7 @@ def main():
         return
     
     # Process images and print results
-    process_images(img_paths, session, input_name, class_names, args.target_size, args.norm)
+    process_images(img_paths, session, input_name, class_names, args.target_size, args.crop_size, args.norm)
 
 
 if __name__ == "__main__":
